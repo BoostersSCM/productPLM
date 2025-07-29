@@ -60,6 +60,7 @@ def save_exclude_settings(exclude_dates, filename="공휴일_2025_Second_exclude
 def load_exclude_settings(filename="공휴일_2025_Second_exclude_settings.json"):
     """제외일 설정을 JSON 파일에서 불러오기"""
     try:
+        st.write(f"현재 작업 디렉토리:{os.getcwd()}")
         if os.path.exists(filename):
             with open(filename, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
