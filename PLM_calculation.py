@@ -81,7 +81,7 @@ def get_saved_settings_files():
         return []
 
 # ✅ 담당자 관리 함수들
-def save_team_members(team_members, filename="team_members.json"):
+def save_team_members(team_members, filename="이퀄베리 프로덕트_members.json"):
     """담당자 정보를 JSON 파일로 저장"""
     try:
         settings = {
@@ -97,7 +97,7 @@ def save_team_members(team_members, filename="team_members.json"):
         st.error(f"담당자 정보 저장 중 오류 발생: {e}")
         return False
 
-def load_team_members(filename="team_members.json"):
+def load_team_members(filename="이퀄베리 프로덕트_members.json"):
     """담당자 정보를 JSON 파일에서 불러오기"""
     try:
         if os.path.exists(filename):
