@@ -39,7 +39,7 @@ def calculate_total_lead_time():
 
 
 # ✅ 제외일 설정 저장/불러오기 함수
-def save_exclude_settings(exclude_dates, filename="exclude_settings.json"):
+def save_exclude_settings(exclude_dates, filename="공휴일_2025_Second_exclude_settings.json"):
     """제외일 설정을 JSON 파일로 저장"""
     try:
         # 날짜 객체를 문자열로 변환
@@ -57,7 +57,7 @@ def save_exclude_settings(exclude_dates, filename="exclude_settings.json"):
         st.error(f"설정 저장 중 오류 발생: {e}")
         return False
 
-def load_exclude_settings(filename="exclude_settings.json"):
+def load_exclude_settings(filename="공휴일_2025_Second_exclude_settings.json"):
     """제외일 설정을 JSON 파일에서 불러오기"""
     try:
         if os.path.exists(filename):
