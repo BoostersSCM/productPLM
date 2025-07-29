@@ -418,6 +418,63 @@ def show_calendar_grid(df, excluded_days=None):
                 )
             else:
                 st.info("이미지를 먼저 생성해주세요.")
+        
+        # HTML 다운로드 대안 제공
+        st.markdown("### 📄 HTML 다운로드 (대안)")
+        st.info("이미지 생성이 실패하는 경우 HTML 파일을 다운로드하여 브라우저에서 열어보세요.")
+        
+        # HTML 파일 생성
+        html_filename = f"캘린더_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        html_content_full = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>개발 일정 캘린더</title>
+            <style>
+                body {{ 
+                    font-family: Arial, sans-serif; 
+                    margin: 0; 
+                    padding: 20px 200px 20px 20px;
+                    background: white;
+                    width: 1200px;
+                    overflow: hidden;
+                }}
+                .calendar-container {{
+                    background: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    overflow: hidden;
+                    margin-left: 0;
+                }}
+                /* 스크롤바 숨기기 */
+                ::-webkit-scrollbar {{
+                    display: none;
+                }}
+                html {{
+                    scrollbar-width: none;
+                }}
+                body {{
+                    -ms-overflow-style: none;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="calendar-container">
+                {calendar_html}
+            </div>
+        </body>
+        </html>
+        """
+        
+        st.download_button(
+            "📥 HTML 다운로드",
+            data=html_content_full.encode('utf-8'),
+            file_name=html_filename,
+            mime="text/html",
+            key="download_calendar_html_btn"
+        )
     else:
         st.info("표시할 일정이 없습니다.")
 
@@ -557,16 +614,48 @@ def generate_calendar_image(html_content):
         with open(temp_file, 'w', encoding='utf-8') as f:
             f.write(temp_html)
         
-        # Chrome 옵션 설정
+        # Chrome 옵션 설정 (Streamlit Cloud 환경에 최적화)
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--hide-scrollbars")
         chrome_options.add_argument("--disable-scrollbars")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--remote-debugging-port=9222")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-plugins")
+        chrome_options.add_argument("--disable-images")
+        chrome_options.add_argument("--disable-javascript")
+        chrome_options.add_argument("--disable-web-security")
+        chrome_options.add_argument("--allow-running-insecure-content")
+        chrome_options.add_argument("--disable-background-timer-throttling")
+        chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+        chrome_options.add_argument("--disable-renderer-backgrounding")
+        chrome_options.add_argument("--disable-features=TranslateUI")
+        chrome_options.add_argument("--disable-ipc-flooding-protection")
         
-        # WebDriver 생성 및 스크린샷 촬영
-        driver = webdriver.Chrome(options=chrome_options)
+        # Streamlit Cloud 환경 감지
+        import os
+        if os.environ.get('STREAMLIT_SERVER_RUN_ON_IP') or os.environ.get('STREAMLIT_SERVER_PORT'):
+            # Streamlit Cloud 환경에서는 webdriver-manager 사용
+            try:
+                from webdriver_manager.chrome import ChromeDriverManager
+                from selenium.webdriver.chrome.service import Service
+                
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+            except Exception as e:
+                st.error(f"Chrome 드라이버 설치 실패: {e}")
+                return None
+        else:
+            # 로컬 환경에서는 기본 Chrome 드라이버 사용
+            try:
+                driver = webdriver.Chrome(options=chrome_options)
+            except Exception as e:
+                st.error(f"Chrome 드라이버 실행 실패: {e}")
+                return None
+        
         try:
             driver.get(f"file://{os.path.abspath(temp_file)}")
             
@@ -611,6 +700,12 @@ def generate_calendar_image(html_content):
             
     except Exception as e:
         st.error(f"이미지 생성 중 오류: {e}")
+        # 임시 파일 정리
+        try:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        except:
+            pass
         return None
 
 def show_kanban_board(df):
