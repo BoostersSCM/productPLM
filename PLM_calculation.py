@@ -831,11 +831,19 @@ if st.session_state.current_product != "새 제품":
             st.success(f"💾 저장된 정보: {', '.join(saved_info)}")
         else:
             st.warning("⚠️ 아직 저장된 정보가 없습니다.")
+
+# ✅ 제품별 데이터 불러오기
+if st.session_state.current_product != "새 제품":
     if st.session_state.current_product in st.session_state.products:
-        # 현재 제품의 데이터로 세션 상태 업데이트
         product_data = st.session_state.products[st.session_state.current_product]
-        st.session_state.phases = product_data["phases"].copy()
-        st.session_state.custom_excludes = product_data["custom_excludes"].copy()
+        
+        # 단계 정보 불러오기
+        if "phases" in product_data:
+            st.session_state.phases = product_data["phases"].copy()
+        
+        # 제외일 정보 불러오기
+        if "custom_excludes" in product_data:
+            st.session_state.custom_excludes = product_data["custom_excludes"].copy()
         
         # 담당자 정보 불러오기
         if "team_members" in product_data:
@@ -847,6 +855,12 @@ if st.session_state.current_product != "새 제품":
             target_date_default = datetime.today().date()
     else:
         target_date_default = datetime.today().date()
+else:
+    target_date_default = datetime.today().date()
+
+# 기본값 설정 (안전장치)
+if 'target_date_default' not in locals():
+    target_date_default = datetime.today().date()
 
 st.markdown("---")
 
