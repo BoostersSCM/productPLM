@@ -1,14 +1,11 @@
-# PLM_calculation.py (API 제거 + 주말 자동 제외 + 수동 제외 유지)
+# PLM_calculation.py - 이퀄베리 신제품 일정 관리 시스템
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime, date, timedelta
 import json
 import os
-from PIL import Image
-import io
 import base64
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -274,60 +271,7 @@ def load_product_data_from_sheets(spreadsheet_id, product_name=None):
         st.error(f"Google 스프레드시트 불러오기 중 오류 발생: {e}")
         return None
 
-def save_product_data(product_name, product_data, filename=None):
-    """제품 데이터를 JSON 파일로 저장 (기존 호환성 유지)"""
-    try:
-        if filename is None:
-            filename = f"{product_name}_product_data.json"
-        
-        # productPLM 폴더에 저장
-        file_path = os.path.join("productPLM", filename)
-        
-        # DataFrame을 딕셔너리로 변환
-        phases_dict = product_data["phases"].to_dict(orient="records") if not product_data["phases"].empty else []
-        excludes_list = [d.isoformat() for d in product_data["custom_excludes"]] if product_data["custom_excludes"] else []
-        
-        save_data = {
-            "product_name": product_name,
-            "phases": phases_dict,
-            "custom_excludes": excludes_list,
-            "target_date": product_data["target_date"].isoformat() if product_data["target_date"] else None,
-            "team_members": product_data.get("team_members", []),
-            "saved_at": datetime.now().isoformat(),
-            "description": "제품별 개발 일정 데이터"
-        }
-        
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(save_data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        st.error(f"제품 데이터 저장 중 오류 발생: {e}")
-        return False
 
-def load_product_data(filename):
-    """제품 데이터를 JSON 파일에서 불러오기 (기존 호환성 유지)"""
-    try:
-        # productPLM 폴더에서 로드
-        file_path = os.path.join("productPLM", filename)
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            # 딕셔너리를 DataFrame으로 변환
-            phases_df = pd.DataFrame(data.get("phases", []))
-            excludes_set = {datetime.fromisoformat(d).date() for d in data.get("custom_excludes", [])}
-            target_date = datetime.fromisoformat(data["target_date"]).date() if data.get("target_date") else None
-            
-            return {
-                "phases": phases_df,
-                "custom_excludes": excludes_set,
-                "target_date": target_date,
-                "team_members": data.get("team_members", [])
-            }
-        return None
-    except Exception as e:
-        st.error(f"제품 데이터 불러오기 중 오류 발생: {e}")
-        return None
 
 
 # ✅ 일정 역산
@@ -1444,9 +1388,9 @@ elif visualization_option == "캘린더 그리드 뷰":
 elif visualization_option == "칸반 보드 뷰":
     show_kanban_board(result_df)
 
-# ✅ 제품 데이터 관리
+# ✅ Google 스프레드시트 데이터 관리
 st.markdown("---")
-st.subheader("💾 제품 데이터 관리")
+st.subheader("💾 Google 스프레드시트 데이터 관리")
 product_data_expander = st.expander("제품 데이터 저장/불러오기", expanded=False)
 
 with product_data_expander:
