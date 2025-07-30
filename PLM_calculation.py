@@ -52,21 +52,24 @@ def get_google_sheets_client():
         return None
     
     try:
+        st.info("Google Sheets 클라이언트 생성 중...")
+        
         # st.secrets에서 서비스 계정 정보 읽기
         if hasattr(st.secrets, 'google_service_account'):
-            # secrets.toml에서 서비스 계정 정보 읽기
+            st.info("st.secrets에서 서비스 계정 정보 읽기")
             service_account_info = dict(st.secrets.google_service_account)
             creds = Credentials.from_service_account_info(
                 service_account_info,
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
         elif os.path.exists("productPLM/service_account_key.json"):
-            # 로컬 개발용: 파일에서 읽기
+            st.info("로컬 파일에서 서비스 계정 정보 읽기")
             creds = Credentials.from_service_account_file(
                 "productPLM/service_account_key.json",
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
         else:
+            st.info("환경변수에서 서비스 계정 정보 읽기")
             # Streamlit Cloud 환경변수 사용 (fallback)
             import base64
             service_account_info = json.loads(base64.b64decode(os.environ.get('GOOGLE_SERVICE_ACCOUNT_KEY', '')))
@@ -75,7 +78,9 @@ def get_google_sheets_client():
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
         
+        st.info("gspread 클라이언트 생성 중...")
         client = gspread.authorize(creds)
+        st.info("Google Sheets 클라이언트 생성 완료")
         return client
     except Exception as e:
         st.error(f"Google Sheets 클라이언트 생성 실패: {e}")
@@ -110,15 +115,23 @@ def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None)
         # 제품명으로 워크시트 탭 생성 (기존 탭이 있으면 덮어쓰기)
         worksheet_title = f"{product_name}_데이터"
         
+        st.info(f"워크시트 탭 생성 중: {worksheet_title}")
+        
         # 기존 워크시트가 있으면 삭제
         try:
             existing_worksheet = spreadsheet.worksheet(worksheet_title)
             spreadsheet.del_worksheet(existing_worksheet)
-        except:
-            pass
+            st.info("기존 워크시트 삭제 완료")
+        except Exception as e:
+            st.info(f"기존 워크시트가 없거나 삭제 실패: {e}")
         
         # 새 워크시트 생성
-        worksheet = spreadsheet.add_worksheet(title=worksheet_title, rows=100, cols=20)
+        try:
+            worksheet = spreadsheet.add_worksheet(title=worksheet_title, rows=100, cols=20)
+            st.info("새 워크시트 생성 완료")
+        except Exception as e:
+            st.error(f"워크시트 생성 실패: {e}")
+            return False, None, None
         
         # 데이터 준비
         phases_df = product_data["phases"]
@@ -169,7 +182,13 @@ def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None)
             ])
         
         # 데이터 쓰기
-        worksheet.update('A1', data_to_write)
+        try:
+            st.info(f"데이터 쓰기 중... (총 {len(data_to_write)}행)")
+            worksheet.update('A1', data_to_write)
+            st.info("데이터 쓰기 완료")
+        except Exception as e:
+            st.error(f"데이터 쓰기 실패: {e}")
+            return False, None, None
         
         # 스프레드시트 URL 반환
         spreadsheet_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
@@ -542,6 +561,35 @@ def show_calendar_grid(df, excluded_days=None):
         st.markdown("### 📄 HTML 다운로드 (대안)")
         st.info("이미지 생성이 실패하는 경우 HTML 파일을 다운로드하여 브라우저에서 열어보세요.")
         
+        # 색깔별 설명 HTML 생성
+        phase_colors = {
+            "사전 시장조사": "#E3F2FD",
+            "부자재 사양확정정 및 샘플링": "#F3E5F5",
+            "CT 및 사전 품질 확보": "#E8F5E8",
+            "부자재 발주~입고": "#FFF3E0",
+            "완제품 발주~생산": "#FCE4EC",
+            "품질 초도 검사~입고": "#E0F2F1"
+        }
+        
+        legend_html = """
+        <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">🎨 단계별 색상 설명</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+        """
+        
+        for phase, color in phase_colors.items():
+            legend_html += f"""
+                <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px; border: 1px solid #ddd;">
+                    <div style="width: 20px; height: 20px; background: {color}; border: 1px solid #ccc; border-radius: 3px; margin-right: 10px;"></div>
+                    <span style="font-size: 13px; font-weight: 500; color: #333;">{phase}</span>
+                </div>
+            """
+        
+        legend_html += """
+            </div>
+        </div>
+        """
+        
         # HTML 파일 생성
         html_filename = f"캘린더_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
         html_content_full = f"""
@@ -581,6 +629,7 @@ def show_calendar_grid(df, excluded_days=None):
         </head>
         <body>
             <div class="calendar-container">
+                {legend_html}
                 {calendar_html}
             </div>
         </body>
