@@ -215,6 +215,34 @@ def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None)
                 row["Asana Task 코드"]
             ])
         
+        # 5. 단계별 시작/종료일 계산 및 저장
+        try:
+            # 시작/종료일 계산
+            schedule_data = backward_schedule(target_date, phases_df.to_dict('records'), excludes_list)
+            schedule_df = pd.DataFrame(schedule_data)
+            
+            data_to_write.extend([
+                [""],  # 빈 줄
+                ["단계별 시작/종료일"],
+                ["단계", "시작일", "종료일", "담당자", "Asana Task 코드"]
+            ])
+            
+            for _, row in schedule_df.iterrows():
+                data_to_write.append([
+                    row["단계"],
+                    row["시작일"].strftime("%Y-%m-%d") if pd.notna(row["시작일"]) else "",
+                    row["종료일"].strftime("%Y-%m-%d") if pd.notna(row["종료일"]) else "",
+                    row["담당자"],
+                    row["Asana Task 코드"]
+                ])
+        except Exception as e:
+            st.warning(f"시작/종료일 계산 중 오류 발생: {e}")
+            data_to_write.extend([
+                [""],  # 빈 줄
+                ["단계별 시작/종료일"],
+                ["⚠️ 시작/종료일 계산 실패"]
+            ])
+        
         # 데이터 쓰기
         try:
             st.info(f"데이터 쓰기 중... (총 {len(data_to_write)}행)")
@@ -274,6 +302,8 @@ def load_product_data_from_sheets(spreadsheet_id, product_name=None):
         phases_data = []
         
         current_section = None
+        schedule_data = []  # 시작/종료일 데이터 저장용
+        
         for row in all_data:
             if not row or not row[0]:  # 빈 줄 건너뛰기
                 continue
@@ -290,6 +320,8 @@ def load_product_data_from_sheets(spreadsheet_id, product_name=None):
                 current_section = "excludes"
             elif row[0] == "단계별 개발 일정":
                 current_section = "phases"
+            elif row[0] == "단계별 시작/종료일":
+                current_section = "schedule"
             elif current_section == "team_members" and row[0] != "번호":
                 if len(row) > 1:
                     team_members.append(row[1])
@@ -308,14 +340,30 @@ def load_product_data_from_sheets(spreadsheet_id, product_name=None):
                         "담당자": row[2],
                         "Asana Task 코드": row[3]
                     })
+            elif current_section == "schedule" and row[0] != "단계" and row[0] != "⚠️ 시작/종료일 계산 실패":
+                if len(row) >= 5:
+                    try:
+                        start_date = datetime.strptime(row[1], "%Y-%m-%d").date() if row[1] else None
+                        end_date = datetime.strptime(row[2], "%Y-%m-%d").date() if row[2] else None
+                        schedule_data.append({
+                            "단계": row[0],
+                            "시작일": start_date,
+                            "종료일": end_date,
+                            "담당자": row[3],
+                            "Asana Task 코드": row[4]
+                        })
+                    except:
+                        pass
         
         # DataFrame 생성
         phases_df = pd.DataFrame(phases_data)
+        schedule_df = pd.DataFrame(schedule_data) if schedule_data else pd.DataFrame()
         excludes_set = set(excludes_list)
         
         return {
             "product_name": product_name,
             "phases": phases_df,
+            "schedule": schedule_df,  # 시작/종료일 데이터 추가
             "custom_excludes": excludes_set,
             "target_date": target_date,
             "team_members": team_members
@@ -606,9 +654,9 @@ def show_calendar_grid(df, excluded_days=None):
         }
         
         legend_html = """
-        <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
-            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">🎨 단계별 색상 설명</h3>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+        <div style="margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 14px;">🎨 단계별 색상 설명</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;">
         """
         
         for phase, color in phase_colors.items():
