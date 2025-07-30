@@ -975,73 +975,162 @@ else:
 if 'target_date_default' not in locals():
     target_date_default = datetime.today().date()
 
-st.markdown("---")
+# ✅ 설정 관리 섹션
+st.markdown("## ⚙️ 설정 관리")
+settings_expander = st.expander("설정 관리", expanded=False)
 
-# ✅ 담당자 관리
-with st.expander("👥 담당자 관리"):
+with settings_expander:
+    col1, col2 = st.columns(2)
     
-    # 담당자 추가
-    st.subheader("➕ 담당자 추가")
-    
-    # 세션 상태 초기화
-    if "new_member_input" not in st.session_state:
-        st.session_state.new_member_input = ""
-    
-    def add_member():
-        if st.session_state.new_member_input and st.session_state.new_member_input.strip():
-            if "team_members" not in st.session_state:
-                st.session_state.team_members = []
-            if st.session_state.new_member_input.strip() not in st.session_state.team_members:
-                added_member = st.session_state.new_member_input.strip()
-                st.session_state.team_members.append(added_member)
-                st.session_state.new_member_input = ""  # 입력 필드 초기화
-                st.success(f"✅ '{added_member}' 추가됨 - 리드타임 입력에서 바로 선택 가능합니다!")
+    with col1:
+        st.markdown("### 👥 담당자 관리")
+        
+        # 기본 담당자 파일 자동 불러오기
+        if "team_members_loaded" not in st.session_state:
+            try:
+                default_members_file = os.path.join("BoostersSCM", "Eqqualberry_PLM_members.json")
+                if os.path.exists(default_members_file):
+                    loaded_members, _ = load_team_members("Eqqualberry_PLM_members.json")
+                    if loaded_members:
+                        st.session_state.team_members = loaded_members
+                        st.session_state.team_members_loaded = True
+                        st.success("✅ 기본 담당자 목록을 불러왔습니다.")
+            except Exception as e:
+                st.warning(f"기본 담당자 파일 불러오기 실패: {e}")
+        
+        # 새 담당자 추가
+        new_member = st.text_input("새 담당자 추가", key="new_member_input", 
+                                  on_change=lambda: add_new_member())
+        
+        # 담당자 목록 표시 및 삭제
+        if st.session_state.team_members:
+            st.write("**현재 담당자 목록:**")
+            for i, member in enumerate(st.session_state.team_members):
+                col_a, col_b = st.columns([3, 1])
+                with col_a:
+                    st.write(f"• {member}")
+                with col_b:
+                    if st.button("🗑️", key=f"delete_member_{i}"):
+                        st.session_state.team_members.remove(member)
+                        st.rerun()
+        
+        # 담당자 목록 저장/불러오기
+        col_save1, col_load1 = st.columns(2)
+        with col_save1:
+            if st.button("💾 담당자 목록 저장", key="save_team_btn"):
+                if save_team_members(st.session_state.team_members):
+                    st.success("✅ 담당자 목록이 저장되었습니다!")
+        
+        with col_load1:
+            # 저장된 담당자 파일 목록
+            team_files = get_saved_team_files()
+            if team_files:
+                selected_team_file = st.selectbox("저장된 담당자 파일", ["선택하세요"] + team_files, key="team_file_select")
+                if st.button("📂 담당자 목록 불러오기", key="load_team_btn") and selected_team_file != "선택하세요":
+                    loaded_members, _ = load_team_members(selected_team_file)
+                    if loaded_members:
+                        st.session_state.team_members = loaded_members
+                        st.success(f"✅ **{selected_team_file}** 담당자 목록을 불러왔습니다!")
+                        st.rerun()
             else:
-                st.warning("이미 존재하는 담당자입니다.")
+                st.info("저장된 담당자 파일이 없습니다.")
     
-    new_member = st.text_input(
-        "새 담당자 추가 (엔터키로 바로 추가)",
-        placeholder="담당자 이름 입력 후 엔터",
-        value=st.session_state.new_member_input,
-        on_change=add_member,
-        key="new_member_input"
-    )
-    
-    st.markdown("---")
-    
-    # 담당자 목록 표 형태로 표시
-    if "team_members" in st.session_state and st.session_state.team_members:
-        st.subheader("👥 등록된 담당자 목록")
-        # 데이터프레임으로 변환
-        df_members = pd.DataFrame({
-            "번호": range(1, len(st.session_state.team_members) + 1),
-            "담당자": st.session_state.team_members
-        })
+    with col2:
+        st.markdown("### 📅 제외일 설정")
         
-        # 표 형태로 표시
-        st.dataframe(
-            df_members,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "번호": st.column_config.NumberColumn("번호", width="small"),
-                "담당자": st.column_config.TextColumn("담당자", width="medium")
-            }
-        )
+        # 기본 제외일 파일 자동 불러오기
+        if "exclude_dates_loaded" not in st.session_state:
+            try:
+                default_exclude_file = os.path.join("BoostersSCM", "공휴일_2025_Second_exclude_settings.json")
+                if os.path.exists(default_exclude_file):
+                    loaded_dates, _ = load_exclude_settings("공휴일_2025_Second_exclude_settings.json")
+                    if loaded_dates:
+                        st.session_state.custom_excludes.update(loaded_dates)
+                        st.session_state.exclude_dates_loaded = True
+                        st.success("✅ 기본 제외일 설정을 불러왔습니다.")
+            except Exception as e:
+                st.warning(f"기본 제외일 파일 불러오기 실패: {e}")
         
-        # 담당자 삭제
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            delete_member = st.selectbox("삭제할 담당자 선택", [""] + st.session_state.team_members)
-        with col2:
-            if st.button("🗑️ 삭제", key="delete_member_btn") and delete_member:
-                st.session_state.team_members.remove(delete_member)
-                st.success(f"✅ '{delete_member}' 삭제됨")
+        # 제외일 추가
+        exclude_date = st.date_input("제외할 날짜 선택", key="exclude_date_input")
+        if st.button("➕ 제외일 추가", key="add_exclude_btn"):
+            if exclude_date not in st.session_state.custom_excludes:
+                st.session_state.custom_excludes.add(exclude_date)
+                st.success(f"✅ {exclude_date.strftime('%Y-%m-%d')} 제외일로 추가되었습니다!")
                 st.rerun()
+            else:
+                st.warning("이미 제외일로 설정된 날짜입니다.")
         
-        st.info(f"총 {len(st.session_state.team_members)}명의 담당자가 등록되어 있습니다.")
+        # 제외일 목록 표시 및 삭제
+        if st.session_state.custom_excludes:
+            st.write("**현재 제외일 목록:**")
+            for exclude_date in sorted(st.session_state.custom_excludes):
+                col_c, col_d = st.columns([3, 1])
+                with col_c:
+                    st.write(f"• {exclude_date.strftime('%Y-%m-%d')}")
+                with col_d:
+                    if st.button("🗑️", key=f"delete_exclude_{exclude_date}"):
+                        st.session_state.custom_excludes.remove(exclude_date)
+                        st.rerun()
+        
+        # 제외일 설정 저장/불러오기
+        col_save2, col_load2 = st.columns(2)
+        with col_save2:
+            if st.button("💾 제외일 설정 저장", key="save_exclude_btn"):
+                if save_exclude_settings(st.session_state.custom_excludes):
+                    st.success("✅ 제외일 설정이 저장되었습니다!")
+        
+        with col_load2:
+            # 저장된 제외일 설정 파일 목록
+            exclude_files = get_saved_settings_files()
+            if exclude_files:
+                selected_exclude_file = st.selectbox("저장된 제외일 설정", ["선택하세요"] + exclude_files, key="exclude_file_select")
+                if st.button("📂 제외일 설정 불러오기", key="load_exclude_btn") and selected_exclude_file != "선택하세요":
+                    loaded_dates, _ = load_exclude_settings(selected_exclude_file)
+                    if loaded_dates:
+                        st.session_state.custom_excludes = loaded_dates
+                        st.success(f"✅ **{selected_exclude_file}** 제외일 설정을 불러왔습니다!")
+                        st.rerun()
+            else:
+                st.info("저장된 제외일 설정 파일이 없습니다.")
+    
+    with col3:
+        # 기본 설정 불러오기
+        if st.button("🔄 기본 설정 불러오기", key="load_default_settings_btn"):
+            loaded_dates, saved_at = load_exclude_settings("exclude_settings.json")
+            if loaded_dates:
+                st.session_state.custom_excludes.update(loaded_dates)
+                st.success(f"✅ 기본 설정을 불러왔습니다. ({len(loaded_dates)}개 제외일)")
+            else:
+                st.info("기본 설정 파일이 없습니다.")
+    
+    # 제외일 관리
+    if st.button("🗑️ 제외일 전체 초기화", key="clear_all_excludes_btn"):
+        st.session_state.custom_excludes.clear()
+        st.success("✅ 모든 제외일이 초기화되었습니다.")
+    
+    # 제외일 목록 표시
+    if st.session_state.custom_excludes:
+        st.markdown("### 📋 현재 제외일 목록:")
+        excluded_list = sorted(st.session_state.custom_excludes)
+        for i, d in enumerate(excluded_list):
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.write(f"📌 {d.strftime('%Y-%m-%d')} ({d.strftime('%A')})")
+            with col2:
+                if st.button(f"삭제", key=f"del_{i}"):
+                    st.session_state.custom_excludes.remove(d)
+                    st.rerun()
+        st.info(f"총 {len(excluded_list)}개의 제외일이 등록되어 있습니다.")
     else:
-        st.info("등록된 담당자가 없습니다.")
+        st.info("현재 등록된 제외일 없음")
+
+# ✅ 담당자 추가 함수
+def add_new_member():
+    if st.session_state.new_member_input and st.session_state.new_member_input not in st.session_state.team_members:
+        st.session_state.team_members.append(st.session_state.new_member_input)
+        st.session_state.new_member_input = ""
+        st.rerun()
 
 st.markdown("---")
 
@@ -1052,7 +1141,7 @@ st.subheader("📋 단계별 리드타임 / 담당자 / Asana Task 코드 입력
 if "team_members" in st.session_state and st.session_state.team_members:
     st.info(f"✅ 담당자 관리와 연동됨 - {len(st.session_state.team_members)}명의 담당자 중 선택 가능")
 else:
-    st.warning("⚠️ 담당자 관리에서 담당자를 먼저 등록해주세요")
+    st.warning("⚠️ 설정 관리에서 담당자를 먼저 등록해주세요")
 
 # 담당자 드롭다운 옵션 생성
 if "team_members" in st.session_state and st.session_state.team_members:
@@ -1094,7 +1183,7 @@ edited_df = st.data_editor(
             "담당자",
             options=member_options,
             required=False,
-            help="담당자 관리에서 등록한 담당자 중 선택하세요"
+            help="설정 관리에서 등록한 담당자 중 선택하세요"
         ),
         "Asana Task 코드": st.column_config.TextColumn(
             "Asana Task 코드",
@@ -1110,88 +1199,6 @@ if edited_df is not None:
 
 # ✅ 목표일 입력
 target_date = st.date_input("✅ 목표 완료일", value=target_date_default)
-
-# ✅ 사용자 제외일 수동 입력
-with st.expander("🚫 사용자 지정 제외일"):
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📅 개별 날짜 제외")
-        individual_date = st.date_input("제외할 개별 날짜 선택", value=datetime.today().date())
-        if st.button("➕ 개별 날짜 제외일 반영", key="add_individual_date_btn"):
-            st.session_state.custom_excludes.add(individual_date)
-            st.success(f"✅ {individual_date.strftime('%Y-%m-%d')} 날짜가 제외일로 추가되었습니다.")
-    
-    with col2:
-        st.subheader("📆 기간 제외")
-        start_date = st.date_input("제외 기간 시작일", value=datetime.today().date())
-        end_date = st.date_input("제외 기간 종료일", value=datetime.today().date())
-        
-        if st.button("➕ 기간 제외일 반영", key="add_date_range_btn"):
-            # 기간 내 모든 날짜를 제외일로 추가
-            current = start_date
-            while current <= end_date:
-                st.session_state.custom_excludes.add(current)
-                current += timedelta(days=1)
-            st.success(f"✅ {start_date} ~ {end_date} 기간이 제외일로 추가되었습니다.")
-    
-    # 제외일 설정 저장/불러오기
-    st.markdown("### 💾 제외일 설정 저장/불러오기")
-    col1, col2, col3 = st.columns([1, 1, 1])
-    
-    with col1:
-        # 설정 저장
-        settings_name = st.text_input("설정 이름", placeholder="예: 공휴일_2024")
-        if st.button("💾 설정 저장", key="save_exclude_settings_btn"):
-            if settings_name.strip():
-                filename = f"{settings_name.strip()}_exclude_settings.json"
-                if save_exclude_settings(st.session_state.custom_excludes, filename):
-                    st.success(f"✅ '{settings_name.strip()}' 설정이 저장되었습니다.")
-            else:
-                st.warning("설정 이름을 입력해주세요.")
-    
-    with col2:
-        # 저장된 설정 불러오기
-        saved_files = get_saved_settings_files()
-        if saved_files:
-            selected_file = st.selectbox("저장된 설정 선택", ["선택하세요"] + saved_files)
-            if st.button("📂 설정 불러오기", key="load_exclude_settings_btn") and selected_file != "선택하세요":
-                loaded_dates, saved_at = load_exclude_settings(selected_file)
-                st.session_state.custom_excludes.update(loaded_dates)
-                st.success(f"✅ '{selected_file}' 설정을 불러왔습니다. ({len(loaded_dates)}개 제외일)")
-        else:
-            st.info("저장된 설정이 없습니다.")
-    
-    with col3:
-        # 기본 설정 불러오기
-        if st.button("🔄 기본 설정 불러오기", key="load_default_settings_btn"):
-            loaded_dates, saved_at = load_exclude_settings("exclude_settings.json")
-            if loaded_dates:
-                st.session_state.custom_excludes.update(loaded_dates)
-                st.success(f"✅ 기본 설정을 불러왔습니다. ({len(loaded_dates)}개 제외일)")
-            else:
-                st.info("기본 설정 파일이 없습니다.")
-    
-    # 제외일 관리
-    if st.button("🗑️ 제외일 전체 초기화", key="clear_all_excludes_btn"):
-        st.session_state.custom_excludes.clear()
-        st.success("✅ 모든 제외일이 초기화되었습니다.")
-    
-    # 제외일 목록 표시
-    if st.session_state.custom_excludes:
-        st.markdown("### 📋 현재 제외일 목록:")
-        excluded_list = sorted(st.session_state.custom_excludes)
-        for i, d in enumerate(excluded_list):
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.write(f"📌 {d.strftime('%Y-%m-%d')} ({d.strftime('%A')})")
-            with col2:
-                if st.button(f"삭제", key=f"del_{i}"):
-                    st.session_state.custom_excludes.remove(d)
-                    st.rerun()
-        st.info(f"총 {len(excluded_list)}개의 제외일이 등록되어 있습니다.")
-    else:
-        st.info("현재 등록된 제외일 없음")
 
 # ✅ 주말 제외일 자동 설정
 def get_weekends_between(start: date, end: date) -> set:
@@ -1279,66 +1286,43 @@ elif visualization_option == "캘린더 그리드 뷰":
 elif visualization_option == "칸반 보드 뷰":
     show_kanban_board(result_df)
 
-# ✅ 수동 저장 기능
+# ✅ 제품 데이터 관리
 st.markdown("---")
-st.subheader("💾 제품 데이터 저장")
+st.subheader("💾 제품 데이터 관리")
+product_data_expander = st.expander("제품 데이터 저장/불러오기", expanded=False)
 
-if st.session_state.current_product != "새 제품":
-    # 현재 제품 정보 표시
-    col1, col2 = st.columns([2, 1])
+with product_data_expander:
+    col_save, col_load = st.columns(2)
     
-    with col1:
-        st.info(f"📋 현재 제품: **{st.session_state.current_product}**")
+    with col_save:
+        st.markdown("### 💾 제품 데이터 저장")
+        save_filename = st.text_input("저장할 파일명 (확장자 제외)", 
+                                    value=f"{st.session_state.current_product}_product_data" if st.session_state.current_product != "새 제품" else "product_data",
+                                    key="save_filename_input")
         
-        # 저장할 데이터 요약 표시
-        save_summary = []
-        if not st.session_state.phases.empty:
-            phase_count = len([phase for phase in st.session_state.phases["단계"] if phase])
-            if phase_count > 0:
-                save_summary.append(f"📊 단계 {phase_count}개")
-        
-        if st.session_state.custom_excludes:
-            save_summary.append(f"🚫 제외일 {len(st.session_state.custom_excludes)}개")
-        
-        if "team_members" in st.session_state and st.session_state.team_members:
-            save_summary.append(f"👥 담당자 {len(st.session_state.team_members)}명")
-        
-        if target_date:
-            save_summary.append(f"📅 목표일: {target_date.strftime('%Y-%m-%d')}")
-        
-        if save_summary:
-            st.markdown(f"**저장할 내용:** {', '.join(save_summary)}")
-    
-    with col2:
-        # 수동 저장 버튼
-        if st.button("💾 제품 데이터 저장", key="save_product_btn"):
+        if st.button("💾 제품 데이터 저장", key="save_product_data_btn"):
             product_data = {
                 "phases": st.session_state.phases,
                 "custom_excludes": st.session_state.custom_excludes,
-                "target_date": target_date,
-                "team_members": st.session_state.team_members if "team_members" in st.session_state else []
+                "target_date": st.session_state.target_date,
+                "team_members": st.session_state.team_members
             }
             
-            if save_product_data(st.session_state.current_product, product_data):
+            if save_product_data(st.session_state.current_product, product_data, f"{save_filename}.json"):
                 st.success(f"✅ **{st.session_state.current_product}** 제품 데이터가 저장되었습니다!")
-            else:
-                st.error("❌ 저장 중 오류가 발생했습니다.")
     
-    # 저장된 파일 불러오기
-    st.markdown("### 📂 저장된 제품 데이터 불러오기")
-    
-    # 저장된 제품 파일 목록
-    try:
-        # BoostersSCM 폴더에서 검색
-        folder_path = "BoostersSCM"
-        if os.path.exists(folder_path):
-            product_files = [f for f in os.listdir(folder_path) if f.endswith('_product_data.json')]
-            if product_files:
-                selected_file = st.selectbox("저장된 제품 파일 선택", ["선택하세요"] + product_files)
-                
-                col1, col2 = st.columns([1, 1])
-                with col1:
-                    if st.button("📂 제품 데이터 불러오기", key="load_product_btn") and selected_file != "선택하세요":
+    with col_load:
+        st.markdown("### 📂 제품 데이터 불러오기")
+        # 저장된 제품 파일 목록
+        try:
+            # BoostersSCM 폴더에서 검색
+            folder_path = "BoostersSCM"
+            if os.path.exists(folder_path):
+                product_files = [f for f in os.listdir(folder_path) if f.endswith('_product_data.json')]
+                if product_files:
+                    selected_file = st.selectbox("저장된 제품 파일 선택", ["선택하세요"] + product_files, key="load_product_select")
+                    
+                    if st.button("📂 제품 데이터 불러오기", key="load_product_data_btn") and selected_file != "선택하세요":
                         loaded_data = load_product_data(selected_file)
                         if loaded_data:
                             st.session_state.phases = loaded_data["phases"]
@@ -1349,8 +1333,8 @@ if st.session_state.current_product != "새 제품":
                                 st.session_state.team_members = loaded_data["team_members"]
                             st.success(f"✅ **{selected_file}** 제품 데이터를 불러왔습니다!")
                             st.rerun()
-            
-                with col2:
+                    
+                    # 파일 삭제 기능
                     if st.button("🗑️ 선택된 파일 삭제", key="delete_product_file_btn") and selected_file != "선택하세요":
                         try:
                             file_path = os.path.join(folder_path, selected_file)
@@ -1359,12 +1343,9 @@ if st.session_state.current_product != "새 제품":
                             st.rerun()
                         except Exception as e:
                             st.error(f"❌ 파일 삭제 중 오류 발생: {e}")
+                else:
+                    st.info("저장된 제품 데이터 파일이 없습니다.")
             else:
-                st.info("저장된 제품 데이터 파일이 없습니다.")
-        else:
-            st.info("BoostersSCM 폴더가 존재하지 않습니다.")
-    except Exception as e:
-        st.error(f"파일 목록 조회 중 오류 발생: {e}")
-
-else:
-    st.warning("⚠️ 저장할 제품을 먼저 선택해주세요.")
+                st.info("BoostersSCM 폴더가 존재하지 않습니다.")
+        except Exception as e:
+            st.error(f"파일 목록 조회 중 오류 발생: {e}")
