@@ -95,21 +95,31 @@ def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None)
             st.error("Google Sheets 클라이언트 생성 실패")
             return False, None, None
         
-        # 스프레드시트 ID가 없으면 새로 생성
-        if not spreadsheet_id:
+        # 스프레드시트 ID가 있으면 기존 스프레드시트 열기 시도, 실패하면 새로 생성
+        if spreadsheet_id:
             try:
+                st.info(f"기존 스프레드시트 열기 시도: {spreadsheet_id}")
+                spreadsheet = client.open_by_key(spreadsheet_id)
+                st.info(f"기존 스프레드시트 열기 성공: {spreadsheet_id}")
+            except Exception as e:
+                st.error(f"기존 스프레드시트 열기 실패: {e}")
+                st.info("새 스프레드시트를 생성합니다...")
+                try:
+                    spreadsheet = client.create("이퀄베리_PLM_데이터")
+                    spreadsheet_id = spreadsheet.id
+                    st.info(f"새 스프레드시트 생성됨: {spreadsheet_id}")
+                except Exception as e2:
+                    st.error(f"새 스프레드시트 생성도 실패: {e2}")
+                    return False, None, None
+        else:
+            # 스프레드시트 ID가 없으면 새로 생성
+            try:
+                st.info("새 스프레드시트 생성 중...")
                 spreadsheet = client.create("이퀄베리_PLM_데이터")
                 spreadsheet_id = spreadsheet.id
                 st.info(f"새 스프레드시트 생성됨: {spreadsheet_id}")
             except Exception as e:
                 st.error(f"스프레드시트 생성 실패: {e}")
-                return False, None, None
-        else:
-            try:
-                spreadsheet = client.open_by_key(spreadsheet_id)
-                st.info(f"기존 스프레드시트 열기 성공: {spreadsheet_id}")
-            except Exception as e:
-                st.error(f"스프레드시트 열기 실패: {e}")
                 return False, None, None
         
         # 제품명으로 워크시트 탭 생성 (기존 탭이 있으면 덮어쓰기)
@@ -983,8 +993,8 @@ def generate_calendar_image(html_content):
                 return container.scrollHeight;
             """)
             
-            # 여백을 포함한 전체 높이 계산 (상하 패딩 40px + 색깔별 설명 높이 + 여유 200px)
-            total_height = calendar_height + 200
+            # 여백을 포함한 전체 높이 계산 (상하 패딩 40px + 색깔별 설명 높이 + 여유 300px)
+            total_height = calendar_height + 300
             
             # 브라우저 창 크기를 동적으로 조정
             driver.set_window_size(1200, total_height)
@@ -1554,14 +1564,13 @@ with product_data_expander:
             # 기본 스프레드시트 ID 설정
             DEFAULT_SPREADSHEET_ID = "1BNUCty06p7WTmGr1gf-jsBBB9YT96U3g7Zxn-qYO4xk"
             
-            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 기본값 사용
+            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 None으로 설정
             if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
                 current_spreadsheet_id = st.session_state.saved_spreadsheet_id
+                st.info(f"📊 사용 중인 스프레드시트 ID: `{current_spreadsheet_id}`")
             else:
-                current_spreadsheet_id = DEFAULT_SPREADSHEET_ID
-                st.session_state.saved_spreadsheet_id = DEFAULT_SPREADSHEET_ID
-            
-            st.info(f"📊 사용 중인 스프레드시트 ID: `{current_spreadsheet_id}`")
+                current_spreadsheet_id = None
+                st.info("📊 새 스프레드시트를 생성합니다.")
             
             spreadsheet_id = current_spreadsheet_id
             
@@ -1593,17 +1602,16 @@ with product_data_expander:
             # 기본 스프레드시트 ID 설정
             DEFAULT_SPREADSHEET_ID = "1BNUCty06p7WTmGr1gf-jsBBB9YT96U3g7Zxn-qYO4xk"
             
-            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 기본값 사용
+            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 빈 값 사용
             if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
                 default_spreadsheet_id = st.session_state.saved_spreadsheet_id
             else:
-                default_spreadsheet_id = DEFAULT_SPREADSHEET_ID
-                st.session_state.saved_spreadsheet_id = DEFAULT_SPREADSHEET_ID
+                default_spreadsheet_id = ""
             
             spreadsheet_id = st.text_input(
                 "스프레드시트 ID 입력",
                 value=default_spreadsheet_id,
-                placeholder="기본 스프레드시트 ID가 자동으로 설정됩니다",
+                placeholder="스프레드시트 ID를 입력하거나 비워두면 새로 생성됩니다",
                 key="spreadsheet_id_input"
             )
             
