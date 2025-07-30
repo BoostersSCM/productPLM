@@ -16,8 +16,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import gspread
-from google.oauth2.service_account import Credentials
+# Google Sheets 관련 라이브러리 (선택적)
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GOOGLE_SHEETS_AVAILABLE = True
+except ImportError:
+    GOOGLE_SHEETS_AVAILABLE = False
+    st.warning("⚠️ Google Sheets 기능을 사용하려면 'gspread'와 'google-auth' 패키지가 필요합니다.")
 
 # ✅ 앱 설정
 st.set_page_config(page_title="이퀄베리 신제품 일정 관리", layout="wide")
@@ -44,6 +50,10 @@ def calculate_total_lead_time():
 
 def get_google_sheets_client():
     """Google Sheets API 클라이언트 생성"""
+    if not GOOGLE_SHEETS_AVAILABLE:
+        st.error("Google Sheets 기능을 사용할 수 없습니다. 필요한 패키지를 설치해주세요.")
+        return None
+    
     try:
         # st.secrets에서 서비스 계정 정보 읽기
         if hasattr(st.secrets, 'google_service_account'):
@@ -1378,101 +1388,117 @@ st.subheader("💾 제품 데이터 관리")
 product_data_expander = st.expander("제품 데이터 저장/불러오기", expanded=False)
 
 with product_data_expander:
-    col_sheets_save, col_sheets_load = st.columns(2)
-    
-    with col_sheets_save:
-        st.markdown("### 📊 Google 스프레드시트 저장")
-        st.info("💡 같은 스프레드시트에 새 탭으로 제품 데이터를 저장합니다.")
+    if GOOGLE_SHEETS_AVAILABLE:
+        col_sheets_save, col_sheets_load = st.columns(2)
         
-        # 저장된 스프레드시트 ID 표시
-        if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
-            st.info(f"📊 현재 사용 중인 스프레드시트 ID: `{st.session_state.saved_spreadsheet_id}`")
-        
-        # 새 스프레드시트 생성 또는 기존 스프레드시트 사용
-        use_existing = st.checkbox("기존 스프레드시트 사용", value="saved_spreadsheet_id" in st.session_state)
-        
-        if use_existing and "saved_spreadsheet_id" in st.session_state:
-            spreadsheet_id = st.session_state.saved_spreadsheet_id
-        else:
-            spreadsheet_id = None
-        
-        if st.button("📊 Google 스프레드시트에 저장", key="save_to_sheets_btn"):
-            product_data = {
-                "phases": st.session_state.phases,
-                "custom_excludes": st.session_state.custom_excludes,
-                "target_date": st.session_state.target_date,
-                "team_members": st.session_state.team_members
-            }
+        with col_sheets_save:
+            st.markdown("### 📊 Google 스프레드시트 저장")
+            st.info("💡 같은 스프레드시트에 새 탭으로 제품 데이터를 저장합니다.")
             
-            success, spreadsheet_id, spreadsheet_url = save_product_data_to_sheets(
-                st.session_state.current_product, product_data, spreadsheet_id
+            # 저장된 스프레드시트 ID 표시
+            if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
+                st.info(f"📊 현재 사용 중인 스프레드시트 ID: `{st.session_state.saved_spreadsheet_id}`")
+            
+            # 새 스프레드시트 생성 또는 기존 스프레드시트 사용
+            use_existing = st.checkbox("기존 스프레드시트 사용", value="saved_spreadsheet_id" in st.session_state)
+            
+            if use_existing and "saved_spreadsheet_id" in st.session_state:
+                spreadsheet_id = st.session_state.saved_spreadsheet_id
+            else:
+                spreadsheet_id = None
+            
+            if st.button("📊 Google 스프레드시트에 저장", key="save_to_sheets_btn"):
+                product_data = {
+                    "phases": st.session_state.phases,
+                    "custom_excludes": st.session_state.custom_excludes,
+                    "target_date": st.session_state.target_date,
+                    "team_members": st.session_state.team_members
+                }
+                
+                success, spreadsheet_id, spreadsheet_url = save_product_data_to_sheets(
+                    st.session_state.current_product, product_data, spreadsheet_id
+                )
+                
+                if success:
+                    st.success(f"✅ **{st.session_state.current_product}** 제품 데이터가 Google 스프레드시트에 저장되었습니다!")
+                    st.info(f"📊 스프레드시트 URL: {spreadsheet_url}")
+                    st.info(f"🔑 스프레드시트 ID: `{spreadsheet_id}`")
+                    
+                    # 스프레드시트 ID를 세션에 저장
+                    st.session_state.saved_spreadsheet_id = spreadsheet_id
+                else:
+                    st.error("❌ Google 스프레드시트 저장에 실패했습니다.")
+        
+        with col_sheets_load:
+            st.markdown("### 📊 Google 스프레드시트 불러오기")
+            
+            # 저장된 스프레드시트 ID 사용 또는 새로 입력
+            if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
+                default_spreadsheet_id = st.session_state.saved_spreadsheet_id
+            else:
+                default_spreadsheet_id = ""
+            
+            spreadsheet_id = st.text_input(
+                "스프레드시트 ID 입력",
+                value=default_spreadsheet_id,
+                placeholder="예: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+                key="spreadsheet_id_input"
             )
             
-            if success:
-                st.success(f"✅ **{st.session_state.current_product}** 제품 데이터가 Google 스프레드시트에 저장되었습니다!")
-                st.info(f"📊 스프레드시트 URL: {spreadsheet_url}")
-                st.info(f"🔑 스프레드시트 ID: `{spreadsheet_id}`")
-                
-                # 스프레드시트 ID를 세션에 저장
-                st.session_state.saved_spreadsheet_id = spreadsheet_id
-            else:
-                st.error("❌ Google 스프레드시트 저장에 실패했습니다.")
-    
-    with col_sheets_load:
-        st.markdown("### 📊 Google 스프레드시트 불러오기")
-        
-        # 저장된 스프레드시트 ID 사용 또는 새로 입력
-        if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
-            default_spreadsheet_id = st.session_state.saved_spreadsheet_id
-        else:
-            default_spreadsheet_id = ""
-        
-        spreadsheet_id = st.text_input(
-            "스프레드시트 ID 입력",
-            value=default_spreadsheet_id,
-            placeholder="예: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
-            key="spreadsheet_id_input"
-        )
-        
-        # 제품명 입력 (선택사항)
-        product_name = st.text_input(
-            "제품명 (선택사항 - 비워두면 첫 번째 제품 데이터 불러오기)",
-            placeholder="예: 신제품A",
-            key="product_name_input"
-        )
-        
-        if st.button("📊 스프레드시트에서 불러오기", key="load_from_sheets_btn") and spreadsheet_id:
-            loaded_data = load_product_data_from_sheets(spreadsheet_id, product_name if product_name else None)
-            if loaded_data:
-                st.session_state.phases = loaded_data["phases"]
-                st.session_state.custom_excludes = loaded_data["custom_excludes"]
-                if loaded_data["target_date"]:
-                    st.session_state.target_date = loaded_data["target_date"]
-                if loaded_data["team_members"]:
-                    st.session_state.team_members = loaded_data["team_members"]
-                st.success(f"✅ **{loaded_data['product_name']}** 제품 데이터를 불러왔습니다!")
-                
-                # 스프레드시트 ID 저장
-                st.session_state.saved_spreadsheet_id = spreadsheet_id
-                st.rerun()
-            else:
-                st.error("❌ 스프레드시트에서 데이터를 불러오는데 실패했습니다.")
+            # 제품명 입력 (선택사항)
+            product_name = st.text_input(
+                "제품명 (선택사항 - 비워두면 첫 번째 제품 데이터 불러오기)",
+                placeholder="예: 신제품A",
+                key="product_name_input"
+            )
+            
+            if st.button("📊 스프레드시트에서 불러오기", key="load_from_sheets_btn") and spreadsheet_id:
+                loaded_data = load_product_data_from_sheets(spreadsheet_id, product_name if product_name else None)
+                if loaded_data:
+                    st.session_state.phases = loaded_data["phases"]
+                    st.session_state.custom_excludes = loaded_data["custom_excludes"]
+                    if loaded_data["target_date"]:
+                        st.session_state.target_date = loaded_data["target_date"]
+                    if loaded_data["team_members"]:
+                        st.session_state.team_members = loaded_data["team_members"]
+                    st.success(f"✅ **{loaded_data['product_name']}** 제품 데이터를 불러왔습니다!")
+                    
+                    # 스프레드시트 ID 저장
+                    st.session_state.saved_spreadsheet_id = spreadsheet_id
+                    st.rerun()
+                else:
+                    st.error("❌ 스프레드시트에서 데이터를 불러오는데 실패했습니다.")
 
-    # 설정 안내
-    st.markdown("---")
-    st.markdown("### ⚙️ Google 스프레드시트 설정 안내")
-    st.info("""
-    **Google 스프레드시트 사용을 위해서는 다음 설정이 필요합니다:**
-    
-    1. **Google Cloud Console**에서 프로젝트 생성
-    2. **Google Sheets API** 활성화
-    3. **서비스 계정** 생성 및 키 파일 다운로드
-    4. **.streamlit/secrets.toml** 파일에 서비스 계정 정보 저장
-    5. **스프레드시트 공유** 설정 (서비스 계정 이메일로 편집 권한 부여)
-    
-    **보안 설정:**
-    - 서비스 계정 키는 `.streamlit/secrets.toml`에 안전하게 저장됩니다
-    - GitHub에 민감한 정보가 노출되지 않도록 `.gitignore`에 설정되어 있습니다
-    
-    자세한 설정 방법은 README.md 파일을 참조하세요.
-    """)
+        # 설정 안내
+        st.markdown("---")
+        st.markdown("### ⚙️ Google 스프레드시트 설정 안내")
+        st.info("""
+        **Google 스프레드시트 사용을 위해서는 다음 설정이 필요합니다:**
+        
+        1. **Google Cloud Console**에서 프로젝트 생성
+        2. **Google Sheets API** 활성화
+        3. **서비스 계정** 생성 및 키 파일 다운로드
+        4. **.streamlit/secrets.toml** 파일에 서비스 계정 정보 저장
+        5. **스프레드시트 공유** 설정 (서비스 계정 이메일로 편집 권한 부여)
+        
+        **보안 설정:**
+        - 서비스 계정 키는 `.streamlit/secrets.toml`에 안전하게 저장됩니다
+        - GitHub에 민감한 정보가 노출되지 않도록 `.gitignore`에 설정되어 있습니다
+        
+        자세한 설정 방법은 README.md 파일을 참조하세요.
+        """)
+    else:
+        st.error("❌ Google Sheets 기능을 사용할 수 없습니다.")
+        st.info("""
+        **Google Sheets 기능을 활성화하려면:**
+        
+        1. **Streamlit Cloud 설정**에서 requirements.txt 파일 경로 확인
+        2. **requirements.txt**에 다음 패키지가 포함되어 있는지 확인:
+           ```
+           gspread>=5.7.0
+           google-auth>=2.0.0
+           ```
+        3. **앱 재배포** 후 다시 시도
+        
+        또는 **로컬에서 실행**하여 Google Sheets 기능을 테스트할 수 있습니다.
+        """)
