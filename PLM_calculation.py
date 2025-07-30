@@ -60,13 +60,21 @@ def get_google_sheets_client():
             service_account_info = dict(st.secrets.google_service_account)
             creds = Credentials.from_service_account_info(
                 service_account_info,
-                scopes=['https://www.googleapis.com/auth/spreadsheets']
+                scopes=[
+                    'https://www.googleapis.com/auth/spreadsheets',
+                    'https://www.googleapis.com/auth/drive',
+                    'https://www.googleapis.com/auth/drive.file'
+                ]
             )
         elif os.path.exists("productPLM/service_account_key.json"):
             st.info("로컬 파일에서 서비스 계정 정보 읽기")
             creds = Credentials.from_service_account_file(
                 "productPLM/service_account_key.json",
-                scopes=['https://www.googleapis.com/auth/spreadsheets']
+                scopes=[
+                    'https://www.googleapis.com/auth/spreadsheets',
+                    'https://www.googleapis.com/auth/drive',
+                    'https://www.googleapis.com/auth/drive.file'
+                ]
             )
         else:
             st.info("환경변수에서 서비스 계정 정보 읽기")
@@ -75,7 +83,11 @@ def get_google_sheets_client():
             service_account_info = json.loads(base64.b64decode(os.environ.get('GOOGLE_SERVICE_ACCOUNT_KEY', '')))
             creds = Credentials.from_service_account_info(
                 service_account_info,
-                scopes=['https://www.googleapis.com/auth/spreadsheets']
+                scopes=[
+                    'https://www.googleapis.com/auth/spreadsheets',
+                    'https://www.googleapis.com/auth/drive',
+                    'https://www.googleapis.com/auth/drive.file'
+                ]
             )
         
         st.info("gspread 클라이언트 생성 중...")
@@ -84,7 +96,19 @@ def get_google_sheets_client():
         return client
     except Exception as e:
         st.error(f"Google Sheets 클라이언트 생성 실패: {e}")
-        st.error("서비스 계정 설정을 확인해주세요.")
+        if "insufficient authentication scopes" in str(e):
+            st.error("""
+            **API 권한이 부족합니다. Google Cloud Console에서 다음 API를 활성화해주세요:**
+            
+            1. **Google Sheets API** - 이미 활성화됨
+            2. **Google Drive API** - 새로 활성화 필요
+            
+            **활성화 방법:**
+            - Google Cloud Console → API 및 서비스 → 라이브러리
+            - "Google Drive API" 검색 후 활성화
+            """)
+        else:
+            st.error("서비스 계정 설정을 확인해주세요.")
         return None
 
 def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None):
@@ -993,8 +1017,19 @@ def generate_calendar_image(html_content):
                 return container.scrollHeight;
             """)
             
-            # 여백을 포함한 전체 높이 계산 (상하 패딩 40px + 색깔별 설명 높이 + 여유 300px)
-            total_height = calendar_height + 300
+            # 전체 문서 높이 계산
+            document_height = driver.execute_script("""
+                return Math.max(
+                    document.body.scrollHeight,
+                    document.body.offsetHeight,
+                    document.documentElement.clientHeight,
+                    document.documentElement.scrollHeight,
+                    document.documentElement.offsetHeight
+                );
+            """)
+            
+            # 여백을 포함한 전체 높이 계산 (추가 여백 100px)
+            total_height = document_height + 100
             
             # 브라우저 창 크기를 동적으로 조정
             driver.set_window_size(1200, total_height)
