@@ -821,6 +821,21 @@ if "phases" not in st.session_state:
 if "custom_excludes" not in st.session_state:
     st.session_state.custom_excludes = set()
 
+if "team_members" not in st.session_state:
+    st.session_state.team_members = []
+
+if "target_date" not in st.session_state:
+    st.session_state.target_date = datetime.today().date()
+
+if "new_product_input" not in st.session_state:
+    st.session_state.new_product_input = ""
+
+if "new_member_input" not in st.session_state:
+    st.session_state.new_member_input = ""
+
+if "exclude_date_input" not in st.session_state:
+    st.session_state.exclude_date_input = datetime.today().date()
+
 # 기존 데이터를 새로운 용어로 업데이트 (필요한 경우)
 if "phases" in st.session_state and not st.session_state.phases.empty:
     # 기존 용어를 새로운 용어로 매핑
@@ -854,21 +869,20 @@ st.markdown("---")
 # ✅ 제품 관리
 st.subheader("📦 제품 관리")
 
-# 세션 상태 초기화
-if "new_product_input" not in st.session_state:
-    st.session_state.new_product_input = ""
-
 def add_product():
     if st.session_state.new_product_input and st.session_state.new_product_input.strip():
-        if st.session_state.new_product_input.strip() not in st.session_state.products:
-            st.session_state.products[st.session_state.new_product_input.strip()] = {
+        product_name = st.session_state.new_product_input.strip()
+        if product_name not in st.session_state.products:
+            st.session_state.products[product_name] = {
                 "phases": pd.DataFrame(DEFAULT_PHASES),
                 "custom_excludes": set(),
-                "target_date": datetime.today().date()
+                "target_date": datetime.today().date(),
+                "team_members": st.session_state.team_members.copy() if st.session_state.team_members else []
             }
-            st.session_state.current_product = st.session_state.new_product_input.strip()
+            st.session_state.current_product = product_name
             st.session_state.new_product_input = ""  # 입력 필드 초기화
-            st.success(f"✅ '{st.session_state.new_product_input.strip()}' 제품이 추가되었습니다.")
+            st.success(f"✅ '{product_name}' 제품이 추가되었습니다.")
+            st.rerun()
         else:
             st.warning("이미 존재하는 제품명입니다.")
 
@@ -889,13 +903,14 @@ with col2:
     col_add, col_del = st.columns(2)
     
     with col_add:
-        if st.button("➕ 제품 추가"):
+        if st.button("➕ 제품 추가", key="add_product_btn"):
             if new_product and new_product.strip():
                 if new_product.strip() not in st.session_state.products:
                     st.session_state.products[new_product.strip()] = {
                         "phases": pd.DataFrame(DEFAULT_PHASES),
                         "custom_excludes": set(),
-                        "target_date": datetime.today().date()
+                        "target_date": datetime.today().date(),
+                        "team_members": st.session_state.team_members.copy() if st.session_state.team_members else []
                     }
                     st.session_state.current_product = new_product.strip()
                     st.success(f"✅ '{new_product.strip()}' 제품이 추가되었습니다.")
@@ -1198,7 +1213,7 @@ if edited_df is not None:
     st.session_state.phases = edited_df.copy()
 
 # ✅ 목표일 입력
-target_date = st.date_input("✅ 목표 완료일", value=target_date_default)
+st.session_state.target_date = st.date_input("✅ 목표 완료일", value=st.session_state.target_date)
 
 # ✅ 주말 제외일 자동 설정
 def get_weekends_between(start: date, end: date) -> set:
@@ -1210,16 +1225,16 @@ def get_weekends_between(start: date, end: date) -> set:
         current += timedelta(days=1)
     return weekends
 
-earliest_possible_start = target_date - timedelta(days=300)
-weekend_excludes = get_weekends_between(earliest_possible_start, target_date)
+earliest_possible_start = st.session_state.target_date - timedelta(days=300)
+weekend_excludes = get_weekends_between(earliest_possible_start, st.session_state.target_date)
 
 # ✅ 제품별 데이터 자동 저장
 if st.session_state.current_product != "새 제품":
     st.session_state.products[st.session_state.current_product] = {
         "phases": st.session_state.phases,
         "custom_excludes": st.session_state.custom_excludes,
-        "target_date": target_date,
-        "team_members": st.session_state.team_members if "team_members" in st.session_state else []
+        "target_date": st.session_state.target_date,
+        "team_members": st.session_state.team_members.copy() if st.session_state.team_members else []
     }
     
     # 저장 상태 표시
@@ -1236,11 +1251,11 @@ if st.session_state.current_product != "새 제품":
         saved_count += 1
         saved_details.append(f"제외일 {len(st.session_state.custom_excludes)}개")
     
-    if "team_members" in st.session_state and st.session_state.team_members:
+    if st.session_state.team_members:
         saved_count += 1
         saved_details.append(f"담당자 {len(st.session_state.team_members)}명")
     
-    if target_date:
+    if st.session_state.target_date:
         saved_count += 1
         saved_details.append(f"목표일")
     
@@ -1252,7 +1267,7 @@ st.markdown("---")
 # ✅ 일정 계산
 phases_data = st.session_state.phases.to_dict(orient="records")
 excluded = weekend_excludes | st.session_state.custom_excludes
-result_df = pd.DataFrame(backward_schedule(target_date, phases_data, excluded))
+result_df = pd.DataFrame(backward_schedule(st.session_state.target_date, phases_data, excluded))
 
 
 
