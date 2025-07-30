@@ -90,14 +90,25 @@ def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None)
     try:
         client = get_google_sheets_client()
         if not client:
-            return False
+            st.error("Google Sheets 클라이언트 생성 실패")
+            return False, None, None
         
         # 스프레드시트 ID가 없으면 새로 생성
         if not spreadsheet_id:
-            spreadsheet = client.create("이퀄베리_PLM_데이터")
-            spreadsheet_id = spreadsheet.id
+            try:
+                spreadsheet = client.create("이퀄베리_PLM_데이터")
+                spreadsheet_id = spreadsheet.id
+                st.info(f"새 스프레드시트 생성됨: {spreadsheet_id}")
+            except Exception as e:
+                st.error(f"스프레드시트 생성 실패: {e}")
+                return False, None, None
         else:
-            spreadsheet = client.open_by_key(spreadsheet_id)
+            try:
+                spreadsheet = client.open_by_key(spreadsheet_id)
+                st.info(f"기존 스프레드시트 열기 성공: {spreadsheet_id}")
+            except Exception as e:
+                st.error(f"스프레드시트 열기 실패: {e}")
+                return False, None, None
         
         # 제품명으로 워크시트 탭 생성 (기존 탭이 있으면 덮어쓰기)
         worksheet_title = f"{product_name}_데이터"
@@ -169,6 +180,8 @@ def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None)
         return True, spreadsheet_id, spreadsheet_url
     except Exception as e:
         st.error(f"Google 스프레드시트 저장 중 오류 발생: {e}")
+        st.error(f"오류 타입: {type(e).__name__}")
+        st.error(f"상세 오류: {str(e)}")
         return False, None, None
 
 def load_product_data_from_sheets(spreadsheet_id, product_name=None):
@@ -784,26 +797,75 @@ def generate_calendar_image(html_content):
         chrome_options.add_argument("--disable-features=TranslateUI")
         chrome_options.add_argument("--disable-ipc-flooding-protection")
         
-        # Streamlit Cloud 환경 감지
+        # Streamlit Cloud 환경 감지 및 Chrome 드라이버 설정
         import os
-        if os.environ.get('STREAMLIT_SERVER_RUN_ON_IP') or os.environ.get('STREAMLIT_SERVER_PORT'):
-            # Streamlit Cloud 환경에서는 webdriver-manager 사용
-            try:
-                from webdriver_manager.chrome import ChromeDriverManager
-                from selenium.webdriver.chrome.service import Service
-                
-                service = Service(ChromeDriverManager().install())
-                driver = webdriver.Chrome(service=service, options=chrome_options)
-            except Exception as e:
-                st.error(f"Chrome 드라이버 설치 실패: {e}")
-                return None
-        else:
-            # 로컬 환경에서는 기본 Chrome 드라이버 사용
-            try:
-                driver = webdriver.Chrome(options=chrome_options)
-            except Exception as e:
-                st.error(f"Chrome 드라이버 실행 실패: {e}")
-                return None
+        
+        # 추가 Chrome 옵션 (Streamlit Cloud 최적화)
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+        chrome_options.add_argument("--disable-software-rasterizer")
+        chrome_options.add_argument("--disable-smooth-scrolling")
+        chrome_options.add_argument("--disable-threaded-animation")
+        chrome_options.add_argument("--disable-threaded-scrolling")
+        chrome_options.add_argument("--disable-checker-imaging")
+        chrome_options.add_argument("--disable-new-content-rendering-timeout")
+        chrome_options.add_argument("--disable-hang-monitor")
+        chrome_options.add_argument("--disable-prompt-on-repost")
+        chrome_options.add_argument("--disable-client-side-phishing-detection")
+        chrome_options.add_argument("--disable-component-update")
+        chrome_options.add_argument("--disable-default-apps")
+        chrome_options.add_argument("--disable-sync")
+        chrome_options.add_argument("--disable-translate")
+        chrome_options.add_argument("--no-first-run")
+        chrome_options.add_argument("--no-default-browser-check")
+        chrome_options.add_argument("--disable-background-networking")
+        chrome_options.add_argument("--disable-sync-preferences")
+        chrome_options.add_argument("--disable-default-apps")
+        chrome_options.add_argument("--disable-extensions-except")
+        chrome_options.add_argument("--disable-plugins-discovery")
+        chrome_options.add_argument("--disable-background-mode")
+        chrome_options.add_argument("--disable-component-extensions-with-background-pages")
+        chrome_options.add_argument("--disable-background-timer-throttling")
+        chrome_options.add_argument("--disable-renderer-backgrounding")
+        chrome_options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
+        chrome_options.add_argument("--disable-ipc-flooding-protection")
+        chrome_options.add_argument("--force-color-profile=srgb")
+        chrome_options.add_argument("--metrics-recording-only")
+        chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+        chrome_options.add_argument("--disable-renderer-backgrounding")
+        chrome_options.add_argument("--disable-field-trial-config")
+        chrome_options.add_argument("--disable-features=TranslateUI")
+        chrome_options.add_argument("--disable-ipc-flooding-protection")
+        chrome_options.add_argument("--disable-background-timer-throttling")
+        chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+        chrome_options.add_argument("--disable-renderer-backgrounding")
+        chrome_options.add_argument("--disable-features=TranslateUI")
+        chrome_options.add_argument("--disable-ipc-flooding-protection")
+        
+        # 환경 변수 설정
+        os.environ['WDM_LOG_LEVEL'] = '0'
+        os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
+        
+        try:
+            from webdriver_manager.chrome import ChromeDriverManager
+            from selenium.webdriver.chrome.service import Service
+            
+            # Chrome 드라이버 설치 및 설정
+            driver_path = ChromeDriverManager().install()
+            service = Service(driver_path)
+            
+            # 드라이버 생성
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            
+            # 페이지 로드 타임아웃 설정
+            driver.set_page_load_timeout(30)
+            driver.implicitly_wait(10)
+            
+        except Exception as e:
+            st.error(f"Chrome 드라이버 초기화 실패: {e}")
+            st.warning("Streamlit Cloud 환경에서는 이미지 생성 기능이 제한될 수 있습니다.")
+            st.info("로컬 환경에서 실행하여 이미지 생성 기능을 사용하세요.")
+            return None
         
         try:
             driver.get(f"file://{os.path.abspath(temp_file)}")
@@ -1133,7 +1195,7 @@ with settings_expander:
         
         # 기본 담당자 파일 자동 불러오기
         try:
-            with open("productPLM/Eqqualberry_PLM_members.json", "r", encoding="utf-8") as f:
+            with open("Eqqualberry_PLM_members.json", "r", encoding="utf-8") as f:
                 default_members_data = json.load(f)
                 default_members = default_members_data.get("team_members", [])
                 if default_members:
@@ -1169,7 +1231,7 @@ with settings_expander:
         
         # 기본 제외일 파일 자동 불러오기
         try:
-            with open("productPLM/공휴일_2025_Second_exclude_settings.json", "r", encoding="utf-8") as f:
+            with open("공휴일_2025_Second_exclude_settings.json", "r", encoding="utf-8") as f:
                 default_exclude_data = json.load(f)
                 default_exclude_dates = default_exclude_data.get("exclude_dates", [])
                 if default_exclude_dates:
