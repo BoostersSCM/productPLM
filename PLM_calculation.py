@@ -1395,17 +1395,19 @@ with product_data_expander:
             st.markdown("### 📊 Google 스프레드시트 저장")
             st.info("💡 같은 스프레드시트에 새 탭으로 제품 데이터를 저장합니다.")
             
-            # 저장된 스프레드시트 ID 표시
+            # 기본 스프레드시트 ID 설정
+            DEFAULT_SPREADSHEET_ID = "1BNUCty06p7WTmGr1gf-jsBBB9YT96U3g7Zxn-qYO4xk"
+            
+            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 기본값 사용
             if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
-                st.info(f"📊 현재 사용 중인 스프레드시트 ID: `{st.session_state.saved_spreadsheet_id}`")
-            
-            # 새 스프레드시트 생성 또는 기존 스프레드시트 사용
-            use_existing = st.checkbox("기존 스프레드시트 사용", value="saved_spreadsheet_id" in st.session_state)
-            
-            if use_existing and "saved_spreadsheet_id" in st.session_state:
-                spreadsheet_id = st.session_state.saved_spreadsheet_id
+                current_spreadsheet_id = st.session_state.saved_spreadsheet_id
             else:
-                spreadsheet_id = None
+                current_spreadsheet_id = DEFAULT_SPREADSHEET_ID
+                st.session_state.saved_spreadsheet_id = DEFAULT_SPREADSHEET_ID
+            
+            st.info(f"📊 사용 중인 스프레드시트 ID: `{current_spreadsheet_id}`")
+            
+            spreadsheet_id = current_spreadsheet_id
             
             if st.button("📊 Google 스프레드시트에 저장", key="save_to_sheets_btn"):
                 product_data = {
@@ -1432,16 +1434,20 @@ with product_data_expander:
         with col_sheets_load:
             st.markdown("### 📊 Google 스프레드시트 불러오기")
             
-            # 저장된 스프레드시트 ID 사용 또는 새로 입력
+            # 기본 스프레드시트 ID 설정
+            DEFAULT_SPREADSHEET_ID = "1BNUCty06p7WTmGr1gf-jsBBB9YT96U3g7Zxn-qYO4xk"
+            
+            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 기본값 사용
             if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
                 default_spreadsheet_id = st.session_state.saved_spreadsheet_id
             else:
-                default_spreadsheet_id = ""
+                default_spreadsheet_id = DEFAULT_SPREADSHEET_ID
+                st.session_state.saved_spreadsheet_id = DEFAULT_SPREADSHEET_ID
             
             spreadsheet_id = st.text_input(
                 "스프레드시트 ID 입력",
                 value=default_spreadsheet_id,
-                placeholder="예: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+                placeholder="기본 스프레드시트 ID가 자동으로 설정됩니다",
                 key="spreadsheet_id_input"
             )
             
@@ -1469,24 +1475,7 @@ with product_data_expander:
                 else:
                     st.error("❌ 스프레드시트에서 데이터를 불러오는데 실패했습니다.")
 
-        # 설정 안내
-        st.markdown("---")
-        st.markdown("### ⚙️ Google 스프레드시트 설정 안내")
-        st.info("""
-        **Google 스프레드시트 사용을 위해서는 다음 설정이 필요합니다:**
         
-        1. **Google Cloud Console**에서 프로젝트 생성
-        2. **Google Sheets API** 활성화
-        3. **서비스 계정** 생성 및 키 파일 다운로드
-        4. **.streamlit/secrets.toml** 파일에 서비스 계정 정보 저장
-        5. **스프레드시트 공유** 설정 (서비스 계정 이메일로 편집 권한 부여)
-        
-        **보안 설정:**
-        - 서비스 계정 키는 `.streamlit/secrets.toml`에 안전하게 저장됩니다
-        - GitHub에 민감한 정보가 노출되지 않도록 `.gitignore`에 설정되어 있습니다
-        
-        자세한 설정 방법은 README.md 파일을 참조하세요.
-        """)
     else:
         st.error("❌ Google Sheets 기능을 사용할 수 없습니다.")
         st.info("""
