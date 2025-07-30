@@ -1,34 +1,10 @@
-# Streamlit 웹 애플리케이션
 streamlit>=1.20.0
-
-# 데이터 처리 및 분석
 pandas>=1.3.0
 numpy>=1.21.0
-
-# 시각화
 plotly>=5.0.0
 matplotlib>=3.5.0
-
-# 이미지 처리
 pillow>=8.0.0
-
-# 웹 자동화 (이미지 생성용)
 selenium>=4.0.0
 webdriver-manager>=3.8.0
-
-# 날짜/시간 처리
-python-dateutil>=2.8.0
-
-# JSON 처리
-jsonschema>=3.2.0
-
-# 파일 시스템
-pathlib2>=2.3.0
-
-# 기타 유틸리티
-requests>=2.25.0
-urllib3>=1.26.0
-
-# 개발 도구 (선택사항)
-# jupyter>=1.0.0
-# ipython>=7.0.0 
+gspread>=5.7.0
+google-auth>=2.0.0 
