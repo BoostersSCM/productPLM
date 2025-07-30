@@ -735,85 +735,89 @@ def show_calendar_grid(df, excluded_days=None):
         st.info("표시할 일정이 없습니다.")
 
 def generate_calendar_html(df_dates, years, phase_colors, excluded_days):
-    """캘린더 HTML 생성"""
+    """캘린더 HTML 생성 - 연도 구분 없이 연속 표시"""
     html_parts = []
     
+    # 모든 월을 연도 구분 없이 하나의 리스트로 합치기
+    all_months = []
     for year in years:
         year_data = df_dates[df_dates['연도'] == year]
         months = sorted(year_data['월'].unique())
+        all_months.extend(months)
+    
+    # 월별로 가로 배치 (최대 3개월씩)
+    for i in range(0, len(all_months), 3):
+        month_group = all_months[i:i+3]
         
-        # 월별로 가로 배치 (최대 3개월씩)
-        for i in range(0, len(months), 3):
-            month_group = months[i:i+3]
-            
-            html_parts.append('<div style="display: flex; gap: 20px; margin-bottom: 30px;">')
-            
-            for j in range(3):  # 항상 3개 컬럼 사용
-                if j < len(month_group):
-                    month = month_group[j]
-                    month_data = year_data[year_data['월'] == month]
+        html_parts.append('<div style="display: flex; gap: 20px; margin-bottom: 30px;">')
+        
+        for j in range(3):  # 항상 3개 컬럼 사용
+            if j < len(month_group):
+                month = month_group[j]
+                # 해당 월의 데이터 찾기
+                month_data = df_dates[df_dates['월'] == month]
+                
+                html_parts.append(f'''
+                <div style="border: 2px solid #e0e0e0; border-radius: 8px; padding: 15px; background: #fafafa; flex: 1; min-width: 200px;">
+                    <h4 style="margin: 0 0 15px 0; text-align: center; color: #333;">{month.strftime('%Y년 %m월')}</h4>
+                ''')
+                
+                # 요일 헤더
+                weekdays = ['월', '화', '수', '목', '금', '토', '일']
+                header_html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 10px;">'
+                for day in weekdays:
+                    header_html += f'<div style="text-align: center; font-weight: bold; font-size: 12px; padding: 5px;">{day}</div>'
+                header_html += '</div>'
+                html_parts.append(header_html)
+                
+                # 월의 첫 주 시작일과 마지막 주 종료일 계산
+                month_start = month_data['날짜'].min()
+                month_end = month_data['날짜'].max()
+                first_week_start = month_start - timedelta(days=month_start.weekday())
+                last_week_end = month_end + timedelta(days=6-month_end.weekday())
+                
+                # 주별로 캘린더 표시
+                current_date = first_week_start
+                while current_date <= last_week_end:
+                    week_html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 5px;">'
                     
-                    html_parts.append(f'''
-                    <div style="border: 2px solid #e0e0e0; border-radius: 8px; padding: 15px; background: #fafafa; flex: 1; min-width: 200px;">
-                        <h4 style="margin: 0 0 15px 0; text-align: center; color: #333;">{month.strftime('%Y년 %m월')}</h4>
-                    ''')
-                    
-                    # 요일 헤더
-                    weekdays = ['월', '화', '수', '목', '금', '토', '일']
-                    header_html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 10px;">'
-                    for day in weekdays:
-                        header_html += f'<div style="text-align: center; font-weight: bold; font-size: 12px; padding: 5px;">{day}</div>'
-                    header_html += '</div>'
-                    html_parts.append(header_html)
-                    
-                    # 월의 첫 주 시작일과 마지막 주 종료일 계산
-                    month_start = month_data['날짜'].min()
-                    month_end = month_data['날짜'].max()
-                    first_week_start = month_start - timedelta(days=month_start.weekday())
-                    last_week_end = month_end + timedelta(days=6-month_end.weekday())
-                    
-                    # 주별로 캘린더 표시
-                    current_date = first_week_start
-                    while current_date <= last_week_end:
-                        week_html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 5px;">'
+                    for k in range(7):  # 한 주의 7일
+                        check_date = current_date + timedelta(days=k)
                         
-                        for k in range(7):  # 한 주의 7일
-                            check_date = current_date + timedelta(days=k)
-                            
-                            # 해당 날짜의 단계 정보 확인
-                            date_data = month_data[month_data['날짜'] == check_date]
-                            
-                            # 날짜 스타일 결정
-                            date_style = "text-align: center; padding: 8px; font-size: 12px; border-radius: 4px;"
-                            
-                            if check_date.weekday() >= 5 or check_date.date() in excluded_days:
-                                # 주말 또는 제외일
-                                date_style += "color: #ff4444; background: #f8f8f8;"
-                                date_text = f'<div style="{date_style}">{check_date.day}</div>'
-                            elif not date_data.empty:
-                                # 단계가 있는 날짜
-                                phase = date_data.iloc[0]['단계']
-                                color = phase_colors.get(phase, "#E0E0E0")
-                                date_style += f"background: {color}; border: 1px solid #ddd;"
-                                date_text = f'<div style="{date_style}">{check_date.day}</div>'
-                            else:
-                                # 일반 날짜
-                                date_style += "background: white; border: 1px solid #eee;"
-                                date_text = f'<div style="{date_style}">{check_date.day}</div>'
-                            
-                            week_html += date_text
+                        # 해당 날짜의 단계 정보 확인
+                        date_data = month_data[month_data['날짜'] == check_date]
                         
-                        week_html += '</div>'
-                        html_parts.append(week_html)
+                        # 날짜 스타일 결정
+                        date_style = "text-align: center; padding: 8px; font-size: 12px; border-radius: 4px;"
                         
-                        current_date += timedelta(days=7)
+                        if check_date.weekday() >= 5 or check_date.date() in excluded_days:
+                            # 주말 또는 제외일
+                            date_style += "color: #ff4444; background: #f8f8f8;"
+                            date_text = f'<div style="{date_style}">{check_date.day}</div>'
+                        elif not date_data.empty:
+                            # 단계가 있는 날짜
+                            phase = date_data.iloc[0]['단계']
+                            color = phase_colors.get(phase, "#E0E0E0")
+                            date_style += f"background: {color}; border: 1px solid #ddd;"
+                            date_text = f'<div style="{date_style}">{check_date.day}</div>'
+                        else:
+                            # 일반 날짜
+                            date_style += "background: white; border: 1px solid #eee;"
+                            date_text = f'<div style="{date_style}">{check_date.day}</div>'
+                        
+                        week_html += date_text
                     
-                    html_parts.append('</div>')
-                else:
-                    # 빈 컬럼
-                    html_parts.append('<div style="flex: 1;"></div>')
-            
-            html_parts.append('</div>')
+                    week_html += '</div>'
+                    html_parts.append(week_html)
+                    
+                    current_date += timedelta(days=7)
+                
+                html_parts.append('</div>')
+            else:
+                # 빈 컬럼
+                html_parts.append('<div style="flex: 1;"></div>')
+        
+        html_parts.append('</div>')
     
     return ''.join(html_parts)
 
@@ -1720,27 +1724,43 @@ with product_data_expander:
             
             # 저장된 스프레드시트 ID가 있으면 사용, 없으면 기본값 사용
             if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
-                default_spreadsheet_id = st.session_state.saved_spreadsheet_id
+                spreadsheet_id = st.session_state.saved_spreadsheet_id
             else:
-                default_spreadsheet_id = DEFAULT_SPREADSHEET_ID
+                spreadsheet_id = DEFAULT_SPREADSHEET_ID
                 st.session_state.saved_spreadsheet_id = DEFAULT_SPREADSHEET_ID
             
-            spreadsheet_id = st.text_input(
-                "스프레드시트 ID 입력",
-                value=default_spreadsheet_id,
-                placeholder="기본 스프레드시트 ID가 자동으로 설정됩니다",
-                key="spreadsheet_id_input"
-            )
+            st.info(f"📊 기본 스프레드시트 ID: `{spreadsheet_id}`")
             
-            # 제품명 입력 (선택사항)
-            product_name = st.text_input(
-                "제품명 (선택사항 - 비워두면 첫 번째 제품 데이터 불러오기)",
-                placeholder="예: 신제품A",
-                key="product_name_input"
-            )
+            # 스프레드시트에서 사용 가능한 제품 목록 가져오기
+            available_products = []
+            try:
+                client = get_google_sheets_client()
+                if client:
+                    spreadsheet = client.open_by_key(spreadsheet_id)
+                    worksheets = spreadsheet.worksheets()
+                    available_products = [ws.title.replace("_데이터", "") for ws in worksheets if ws.title.endswith("_데이터")]
+            except Exception as e:
+                st.warning(f"스프레드시트 접근 중 오류: {e}")
             
-            if st.button("📊 스프레드시트에서 불러오기", key="load_from_sheets_btn") and spreadsheet_id:
-                loaded_data = load_product_data_from_sheets(spreadsheet_id, product_name if product_name else None)
+            # 제품 선택 드롭다운
+            if available_products:
+                st.success(f"📋 스프레드시트에서 {len(available_products)}개 제품을 찾았습니다.")
+                selected_product = st.selectbox(
+                    "불러올 제품 선택",
+                    options=["선택하세요"] + available_products,
+                    key="product_selection_dropdown"
+                )
+                
+                if selected_product != "선택하세요":
+                    product_name = selected_product
+                else:
+                    product_name = None
+            else:
+                st.warning("⚠️ 스프레드시트에서 제품 데이터를 찾을 수 없습니다.")
+                product_name = None
+            
+            if st.button("📊 스프레드시트에서 불러오기", key="load_from_sheets_btn"):
+                loaded_data = load_product_data_from_sheets(spreadsheet_id, product_name)
                 if loaded_data:
                     st.session_state.phases = loaded_data["phases"]
                     st.session_state.custom_excludes = loaded_data["custom_excludes"]
