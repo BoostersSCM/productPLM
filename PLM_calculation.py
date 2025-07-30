@@ -495,35 +495,48 @@ def show_calendar_grid(df, excluded_days=None):
         st.markdown("---")
         st.subheader("📸 캘린더 이미지 저장")
         
-        col1, col2 = st.columns([1, 1])
+        # 이미지 생성 옵션
+        image_option = st.radio(
+            "이미지 생성 방식",
+            ["HTML 뷰만 표시", "이미지 생성 시도"],
+            key="calendar_image_option"
+        )
         
-        with col1:
-            if st.button("🖼️ 캘린더 이미지 생성", key="generate_calendar_image_btn"):
-                with st.spinner("이미지를 생성하고 있습니다..."):
-                    try:
-                        # 이미지 생성
-                        image_data = generate_calendar_image(calendar_html)
-                        if image_data:
-                            st.session_state.calendar_image = image_data
-                            st.success("✅ 캘린더 이미지가 생성되었습니다!")
-                        else:
-                            st.error("❌ 이미지 생성에 실패했습니다.")
-                    except Exception as e:
-                        st.error(f"❌ 이미지 생성 중 오류 발생: {e}")
-        
-        with col2:
-            if "calendar_image" in st.session_state and st.session_state.calendar_image:
-                # 이미지 다운로드 버튼
-                filename = f"캘린더_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                st.download_button(
-                    "📥 이미지 다운로드",
-                    data=st.session_state.calendar_image,
-                    file_name=filename,
-                    mime="image/png",
-                    key="download_calendar_image_btn"
-                )
-            else:
-                st.info("이미지를 먼저 생성해주세요.")
+        if image_option == "HTML 뷰만 표시":
+            st.info("✅ HTML 뷰로 캘린더가 표시되었습니다.")
+            
+        else:
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                if st.button("🖼️ 캘린더 이미지 생성", key="generate_calendar_image_btn"):
+                    with st.spinner("이미지를 생성하고 있습니다..."):
+                        try:
+                            # 이미지 생성
+                            image_data = generate_calendar_image(calendar_html)
+                            if image_data:
+                                st.session_state.calendar_image = image_data
+                                st.success("✅ 캘린더 이미지가 생성되었습니다!")
+                            else:
+                                st.error("❌ 이미지 생성에 실패했습니다.")
+                                st.info("💡 HTML 뷰를 사용하여 캘린더를 확인하세요.")
+                        except Exception as e:
+                            st.error(f"❌ 이미지 생성 중 오류 발생: {e}")
+                            st.info("💡 HTML 뷰를 사용하여 캘린더를 확인하세요.")
+            
+            with col2:
+                if "calendar_image" in st.session_state and st.session_state.calendar_image:
+                    # 이미지 다운로드 버튼
+                    filename = f"캘린더_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                    st.download_button(
+                        "📥 이미지 다운로드",
+                        data=st.session_state.calendar_image,
+                        file_name=filename,
+                        mime="image/png",
+                        key="download_calendar_image_btn"
+                    )
+                else:
+                    st.info("이미지를 먼저 생성해주세요.")
         
         # HTML 다운로드 대안 제공
         st.markdown("### 📄 HTML 다운로드 (대안)")
@@ -668,8 +681,37 @@ def generate_calendar_html(df_dates, years, phase_colors, excluded_days):
     return ''.join(html_parts)
 
 def generate_calendar_image(html_content):
-    """HTML을 이미지로 변환"""
+    """HTML을 이미지로 변환 (색깔별 설명 포함)"""
     try:
+        # 색깔별 설명 텍스트 생성
+        phase_colors = {
+            "사전 시장조사": "#E3F2FD",
+            "부자재 사양확정정 및 샘플링": "#F3E5F5",
+            "CT 및 사전 품질 확보": "#E8F5E8",
+            "부자재 발주~입고": "#FFF3E0",
+            "완제품 발주~생산": "#FCE4EC",
+            "품질 초도 검사~입고": "#E0F2F1"
+        }
+        
+        legend_html = """
+        <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">🎨 단계별 색상 설명</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+        """
+        
+        for phase, color in phase_colors.items():
+            legend_html += f"""
+                <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px; border: 1px solid #ddd;">
+                    <div style="width: 20px; height: 20px; background: {color}; border: 1px solid #ccc; border-radius: 3px; margin-right: 10px;"></div>
+                    <span style="font-size: 13px; font-weight: 500; color: #333;">{phase}</span>
+                </div>
+            """
+        
+        legend_html += """
+            </div>
+        </div>
+        """
+        
         # 임시 HTML 파일 생성
         temp_html = f"""
         <!DOCTYPE html>
@@ -680,7 +722,7 @@ def generate_calendar_image(html_content):
                 body {{ 
                     font-family: Arial, sans-serif; 
                     margin: 0; 
-                    padding: 20px 200px 20px 20px;
+                    padding: 40px 200px 40px 40px;
                     background: white;
                     width: 1200px;
                     overflow: hidden;
@@ -709,6 +751,7 @@ def generate_calendar_image(html_content):
         </head>
         <body>
             <div class="calendar-container">
+                {legend_html}
                 {html_content}
             </div>
         </body>
@@ -789,10 +832,68 @@ def generate_calendar_image(html_content):
         # 환경 변수 설정
         os.environ['WDM_LOG_LEVEL'] = '0'
         os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
+        os.environ['WDM_LOCAL'] = '1'  # 로컬 캐시 사용
         
         try:
             from webdriver_manager.chrome import ChromeDriverManager
             from selenium.webdriver.chrome.service import Service
+            
+            # Streamlit Cloud 환경 감지
+            if os.environ.get('STREAMLIT_SERVER_RUN_ON_IP') or os.environ.get('STREAMLIT_SERVER_PORT'):
+                # Streamlit Cloud에서는 더 안정적인 설정 사용
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument("--no-sandbox")
+                chrome_options.add_argument("--disable-gpu")
+                chrome_options.add_argument("--disable-software-rasterizer")
+                chrome_options.add_argument("--disable-extensions")
+                chrome_options.add_argument("--disable-plugins")
+                chrome_options.add_argument("--disable-images")
+                chrome_options.add_argument("--disable-javascript")
+                chrome_options.add_argument("--disable-web-security")
+                chrome_options.add_argument("--allow-running-insecure-content")
+                chrome_options.add_argument("--disable-background-timer-throttling")
+                chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+                chrome_options.add_argument("--disable-renderer-backgrounding")
+                chrome_options.add_argument("--disable-features=TranslateUI")
+                chrome_options.add_argument("--disable-ipc-flooding-protection")
+                chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+                chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+                chrome_options.add_argument("--disable-smooth-scrolling")
+                chrome_options.add_argument("--disable-threaded-animation")
+                chrome_options.add_argument("--disable-threaded-scrolling")
+                chrome_options.add_argument("--disable-checker-imaging")
+                chrome_options.add_argument("--disable-new-content-rendering-timeout")
+                chrome_options.add_argument("--disable-hang-monitor")
+                chrome_options.add_argument("--disable-prompt-on-repost")
+                chrome_options.add_argument("--disable-client-side-phishing-detection")
+                chrome_options.add_argument("--disable-component-update")
+                chrome_options.add_argument("--disable-default-apps")
+                chrome_options.add_argument("--disable-sync")
+                chrome_options.add_argument("--disable-translate")
+                chrome_options.add_argument("--no-first-run")
+                chrome_options.add_argument("--no-default-browser-check")
+                chrome_options.add_argument("--disable-background-networking")
+                chrome_options.add_argument("--disable-sync-preferences")
+                chrome_options.add_argument("--disable-extensions-except")
+                chrome_options.add_argument("--disable-plugins-discovery")
+                chrome_options.add_argument("--disable-background-mode")
+                chrome_options.add_argument("--disable-component-extensions-with-background-pages")
+                chrome_options.add_argument("--disable-background-timer-throttling")
+                chrome_options.add_argument("--disable-renderer-backgrounding")
+                chrome_options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
+                chrome_options.add_argument("--disable-ipc-flooding-protection")
+                chrome_options.add_argument("--force-color-profile=srgb")
+                chrome_options.add_argument("--metrics-recording-only")
+                chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+                chrome_options.add_argument("--disable-renderer-backgrounding")
+                chrome_options.add_argument("--disable-field-trial-config")
+                chrome_options.add_argument("--disable-features=TranslateUI")
+                chrome_options.add_argument("--disable-ipc-flooding-protection")
+                chrome_options.add_argument("--disable-background-timer-throttling")
+                chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+                chrome_options.add_argument("--disable-renderer-backgrounding")
+                chrome_options.add_argument("--disable-features=TranslateUI")
+                chrome_options.add_argument("--disable-ipc-flooding-protection")
             
             # Chrome 드라이버 설치 및 설정
             driver_path = ChromeDriverManager().install()
@@ -827,14 +928,14 @@ def generate_calendar_image(html_content):
                 document.body.style.msOverflowStyle = 'none';
             """)
             
-            # 캘린더 컨테이너의 실제 높이 계산
+            # 캘린더 컨테이너의 실제 높이 계산 (색깔별 설명 포함)
             calendar_height = driver.execute_script("""
                 var container = document.querySelector('.calendar-container');
                 return container.scrollHeight;
             """)
             
-            # 여백을 포함한 전체 높이 계산 (상하 패딩 40px + 여유 120px)
-            total_height = calendar_height + 160
+            # 여백을 포함한 전체 높이 계산 (상하 패딩 40px + 색깔별 설명 높이 + 여유 200px)
+            total_height = calendar_height + 200
             
             # 브라우저 창 크기를 동적으로 조정
             driver.set_window_size(1200, total_height)
