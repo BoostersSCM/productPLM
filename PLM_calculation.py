@@ -23,9 +23,9 @@ st.set_page_config(page_title="이퀄베리 신제품 일정 관리", layout="wi
 # ✅ 기본 단계 정의
 DEFAULT_PHASES = [
     {"단계": "사전 시장조사", "리드타임": 20, "담당자": "", "Asana Task 코드": ""},
-    {"단계": "부자재 서칭 및 샘플링", "리드타임": 27, "담당자": "", "Asana Task 코드": ""},
+    {"단계": "부자재 사양확정 및 샘플링", "리드타임": 30, "담당자": "", "Asana Task 코드": ""},
     {"단계": "CT 및 사전 품질 확보", "리드타임": 10, "담당자": "", "Asana Task 코드": ""},
-    {"단계": "부자재 발주~입고", "리드타임": 30, "담당자": "", "Asana Task 코드": ""},
+    {"단계": "부자재 발주~입고", "리드타임": 25, "담당자": "", "Asana Task 코드": ""},
     {"단계": "완제품 발주~생산", "리드타임": 20, "담당자": "", "Asana Task 코드": ""},
     {"단계": "품질 초도 검사~입고", "리드타임": 5, "담당자": "", "Asana Task 코드": ""},
 ]
@@ -270,7 +270,7 @@ def show_calendar_grid(df, excluded_days=None):
     st.markdown("### 🎨 단계별 색상 설명")
     phase_colors = {
         "사전 시장조사": "#E3F2FD",
-        "부자재 서칭 및 샘플링": "#F3E5F5",
+        "부자재 확정 및 샘플링": "#F3E5F5",
         "CT 및 사전 품질 확보": "#E8F5E8",
         "부자재 발주~입고": "#FFF3E0",
         "완제품 발주~생산": "#FCE4EC",
@@ -751,7 +751,7 @@ if "phases" in st.session_state and not st.session_state.phases.empty:
     # 기존 용어를 새로운 용어로 매핑
     old_to_new = {
         "시장조사": "사전 시장조사",
-        "샘플링": "부자재 서칭 및 샘플링", 
+        "샘플링": "부자재 확정 및 샘플링", 
         "완제품 발주~입고": "완제품 발주~생산",
         "품질 입고 검사": "품질 초도 검사~입고"
     }
@@ -1049,7 +1049,7 @@ edited_df = st.data_editor(
             validate="^.+$"
         ),
         "리드타임": st.column_config.NumberColumn(
-            "리드타임 (일)",
+            "L/T 워킹데이 기준 (일)",
             min_value=1,
             max_value=365,
             help="작업 소요 일수"
