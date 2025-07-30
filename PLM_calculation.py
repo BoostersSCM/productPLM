@@ -636,7 +636,7 @@ def show_calendar_grid(df, excluded_days=None):
                 body {{ 
                     font-family: Arial, sans-serif; 
                     margin: 0; 
-                    padding: 20px 200px 20px 20px;
+                    padding: 15px 100px 15px 15px;
                     background: white;
                     width: 1200px;
                     overflow: hidden;
@@ -777,16 +777,16 @@ def generate_calendar_image(html_content):
         }
         
         legend_html = """
-        <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
-            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">🎨 단계별 색상 설명</h3>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+        <div style="margin-bottom: 12px; padding: 8px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;">
+            <h3 style="margin: 0 0 6px 0; color: #333; font-size: 12px;">🎨 단계별 색상 설명</h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
         """
         
         for phase, color in phase_colors.items():
             legend_html += f"""
-                <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px; border: 1px solid #ddd;">
-                    <div style="width: 20px; height: 20px; background: {color}; border: 1px solid #ccc; border-radius: 3px; margin-right: 10px;"></div>
-                    <span style="font-size: 13px; font-weight: 500; color: #333;">{phase}</span>
+                <div style="display: flex; align-items: center; padding: 3px; background: white; border-radius: 3px; border: 1px solid #ddd;">
+                    <div style="width: 12px; height: 12px; background: {color}; border: 1px solid #ccc; border-radius: 2px; margin-right: 4px;"></div>
+                    <span style="font-size: 10px; font-weight: 500; color: #333;">{phase}</span>
                 </div>
             """
         
@@ -805,7 +805,7 @@ def generate_calendar_image(html_content):
                 body {{ 
                     font-family: Arial, sans-serif; 
                     margin: 0; 
-                    padding: 40px 200px 40px 40px;
+                    padding: 20px 100px 20px 20px;
                     background: white;
                     width: 1200px;
                     overflow: hidden;
@@ -1185,6 +1185,9 @@ if "target_date" not in st.session_state:
 if "new_product_input" not in st.session_state:
     st.session_state.new_product_input = ""
 
+if "product_added" not in st.session_state:
+    st.session_state.product_added = False
+
 if "new_member_input" not in st.session_state:
     st.session_state.new_member_input = ""
 
@@ -1236,7 +1239,7 @@ def add_product():
                 "team_members": st.session_state.team_members.copy() if st.session_state.team_members else []
             }
             st.session_state.current_product = product_name
-            st.session_state.new_product_input = ""  # 입력 필드 초기화
+            st.session_state.product_added = True
             st.success(f"✅ '{product_name}' 제품이 추가되었습니다.")
             st.rerun()
         else:
@@ -1245,6 +1248,11 @@ def add_product():
 col1, col2 = st.columns([3, 1])
 
 with col1:
+    # 제품 추가 후 입력 필드 초기화
+    if st.session_state.product_added:
+        st.session_state.new_product_input = ""
+        st.session_state.product_added = False
+    
     # 제품명 입력
     new_product = st.text_input(
         "새 제품명 입력 (엔터키로 바로 추가)",
