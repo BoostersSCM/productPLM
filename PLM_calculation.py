@@ -555,7 +555,7 @@ def show_calendar_grid(df, excluded_days=None):
     st.markdown("### 🎨 단계별 색상 설명")
     phase_colors = {
         "사전 시장조사": "#E3F2FD",
-        "부자재 사양확정정 및 샘플링": "#F3E5F5",
+        "부자재 사양확정 및 샘플링": "#F3E5F5",
         "CT 및 사전 품질 확보": "#E8F5E8",
         "부자재 발주~입고": "#FFF3E0",
         "완제품 발주~생산": "#FCE4EC",
@@ -652,7 +652,7 @@ def show_calendar_grid(df, excluded_days=None):
         # 색깔별 설명 HTML 생성
         phase_colors = {
             "사전 시장조사": "#E3F2FD",
-            "부자재 사양확정정 및 샘플링": "#F3E5F5",
+            "부자재 사양확정 및 샘플링": "#F3E5F5",
             "CT 및 사전 품질 확보": "#E8F5E8",
             "부자재 발주~입고": "#FFF3E0",
             "완제품 발주~생산": "#FCE4EC",
@@ -667,9 +667,9 @@ def show_calendar_grid(df, excluded_days=None):
         
         for phase, color in phase_colors.items():
             legend_html += f"""
-                <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px; border: 1px solid #ddd;">
-                    <div style="width: 20px; height: 20px; background: {color}; border: 1px solid #ccc; border-radius: 3px; margin-right: 10px;"></div>
-                    <span style="font-size: 13px; font-weight: 500; color: #333;">{phase}</span>
+                <div style="display: flex; align-items: center; padding: 4px; background: white; border-radius: 4px; border: 1px solid #ddd;">
+                    <div style="width: 10px; height: 10px; background: {color}; border: 1px solid #ccc; border-radius: 3px; margin-right: 10px;"></div>
+                    <span style="font-size: 5px; font-weight: 500; color: #333;">{phase}</span>
                 </div>
             """
         
@@ -823,7 +823,7 @@ def generate_calendar_image(html_content):
         # 색깔별 설명 텍스트 생성
         phase_colors = {
             "사전 시장조사": "#E3F2FD",
-            "부자재 사양확정정 및 샘플링": "#F3E5F5",
+            "부자재 사양확정 및 샘플링": "#F3E5F5",
             "CT 및 사전 품질 확보": "#E8F5E8",
             "부자재 발주~입고": "#FFF3E0",
             "완제품 발주~생산": "#FCE4EC",
@@ -1253,7 +1253,7 @@ if "phases" in st.session_state and not st.session_state.phases.empty:
     # 기존 용어를 새로운 용어로 매핑
     old_to_new = {
         "시장조사": "사전 시장조사",
-        "샘플링": "부자재 사양확정정 및 샘플링", 
+        "샘플링": "부자재 사양확정 및 샘플링", 
         "완제품 발주~입고": "완제품 발주~생산",
         "품질 입고 검사": "품질 초도 검사~입고"
     }
