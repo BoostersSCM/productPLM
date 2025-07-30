@@ -42,8 +42,8 @@ def calculate_total_lead_time():
 def save_exclude_settings(exclude_dates, filename="exclude_settings.json"):
     """제외일 설정을 JSON 파일로 저장"""
     try:
-        # BoostersSCM 폴더에 저장
-        file_path = os.path.join("BoostersSCM", filename)
+        # productPLM 폴더에 저장
+        file_path = os.path.join("productPLM", filename)
         data = {
             "exclude_dates": [d.isoformat() for d in exclude_dates],
             "saved_at": datetime.now().isoformat(),
@@ -59,8 +59,8 @@ def save_exclude_settings(exclude_dates, filename="exclude_settings.json"):
 def load_exclude_settings(filename="exclude_settings.json"):
     """제외일 설정을 JSON 파일에서 불러오기"""
     try:
-        # BoostersSCM 폴더에서 로드
-        file_path = os.path.join("BoostersSCM", filename)
+        # productPLM 폴더에서 로드
+        file_path = os.path.join("productPLM", filename)
         if os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -75,8 +75,8 @@ def load_exclude_settings(filename="exclude_settings.json"):
 def get_saved_settings_files():
     """저장된 설정 파일 목록 가져오기"""
     try:
-        # BoostersSCM 폴더에서 검색
-        folder_path = "BoostersSCM"
+        # productPLM 폴더에서 검색
+        folder_path = "productPLM"
         if os.path.exists(folder_path):
             files = [f for f in os.listdir(folder_path) if f.endswith('_exclude_settings.json')]
             return files
@@ -88,8 +88,8 @@ def get_saved_settings_files():
 def save_team_members(team_members, filename="team_members.json"):
     """담당자 목록을 JSON 파일로 저장"""
     try:
-        # BoostersSCM 폴더에 저장
-        file_path = os.path.join("BoostersSCM", filename)
+        # productPLM 폴더에 저장
+        file_path = os.path.join("productPLM", filename)
         data = {
             "team_members": team_members,
             "saved_at": datetime.now().isoformat(),
@@ -105,8 +105,8 @@ def save_team_members(team_members, filename="team_members.json"):
 def load_team_members(filename="team_members.json"):
     """담당자 목록을 JSON 파일에서 불러오기"""
     try:
-        # BoostersSCM 폴더에서 로드
-        file_path = os.path.join("BoostersSCM", filename)
+        # productPLM 폴더에서 로드
+        file_path = os.path.join("productPLM", filename)
         if os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -121,8 +121,8 @@ def load_team_members(filename="team_members.json"):
 def get_saved_team_files():
     """저장된 담당자 파일 목록 가져오기"""
     try:
-        # BoostersSCM 폴더에서 검색
-        folder_path = "BoostersSCM"
+        # productPLM 폴더에서 검색
+        folder_path = "productPLM"
         if os.path.exists(folder_path):
             files = [f for f in os.listdir(folder_path) if f.endswith('_members.json') or f.endswith('_team_members.json')]
             return files
@@ -136,8 +136,8 @@ def save_product_data(product_name, product_data, filename=None):
         if filename is None:
             filename = f"{product_name}_product_data.json"
         
-        # BoostersSCM 폴더에 저장
-        file_path = os.path.join("BoostersSCM", filename)
+        # productPLM 폴더에 저장
+        file_path = os.path.join("productPLM", filename)
         
         # DataFrame을 딕셔너리로 변환
         phases_dict = product_data["phases"].to_dict(orient="records") if not product_data["phases"].empty else []
@@ -163,8 +163,8 @@ def save_product_data(product_name, product_data, filename=None):
 def load_product_data(filename):
     """제품 데이터를 JSON 파일에서 불러오기"""
     try:
-        # BoostersSCM 폴더에서 로드
-        file_path = os.path.join("BoostersSCM", filename)
+        # productPLM 폴더에서 로드
+        file_path = os.path.join("productPLM", filename)
         if os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -1003,7 +1003,7 @@ with settings_expander:
         # 기본 담당자 파일 자동 불러오기
         if "team_members_loaded" not in st.session_state:
             try:
-                default_members_file = os.path.join("BoostersSCM", "Eqqualberry_PLM_members.json")
+                default_members_file = os.path.join("productPLM", "Eqqualberry_PLM_members.json")
                 if os.path.exists(default_members_file):
                     loaded_members, _ = load_team_members("Eqqualberry_PLM_members.json")
                     if loaded_members:
@@ -1063,7 +1063,7 @@ with settings_expander:
         # 기본 제외일 파일 자동 불러오기
         if "exclude_dates_loaded" not in st.session_state:
             try:
-                default_exclude_file = os.path.join("BoostersSCM", "공휴일_2025_Second_exclude_settings.json")
+                default_exclude_file = os.path.join("productPLM", "공휴일_2025_Second_exclude_settings.json")
                 if os.path.exists(default_exclude_file):
                     loaded_dates, _ = load_exclude_settings("공휴일_2025_Second_exclude_settings.json")
                     if loaded_dates:
@@ -1328,7 +1328,7 @@ with product_data_expander:
         # 저장된 제품 파일 목록
         try:
             # BoostersSCM 폴더에서 검색
-            folder_path = "BoostersSCM"
+            folder_path = "productPLM"
             if os.path.exists(folder_path):
                 product_files = [f for f in os.listdir(folder_path) if f.endswith('_product_data.json')]
                 if product_files:
