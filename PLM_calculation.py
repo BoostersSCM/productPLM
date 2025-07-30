@@ -1225,6 +1225,7 @@ st.markdown("---")
 st.subheader("📦 제품 관리")
 
 def add_product():
+    """제품 추가 함수"""
     if st.session_state.new_product_input and st.session_state.new_product_input.strip():
         product_name = st.session_state.new_product_input.strip()
         if product_name not in st.session_state.products:
@@ -1249,9 +1250,13 @@ with col1:
         "새 제품명 입력 (엔터키로 바로 추가)",
         placeholder="예: 신제품A, 화장품B 등",
         value=st.session_state.new_product_input,
-        on_change=add_product,
         key="new_product_input"
     )
+    
+    # 엔터키 감지 및 제품 추가
+    if "new_product_input" in st.session_state and st.session_state.new_product_input:
+        if st.session_state.new_product_input.strip():
+            add_product()
 
 with col2:
     # 제품 추가/삭제 버튼을 나란히 배치
@@ -1259,19 +1264,7 @@ with col2:
     
     with col_add:
         if st.button("➕ 제품 추가", key="add_product_btn"):
-            if new_product and new_product.strip():
-                if new_product.strip() not in st.session_state.products:
-                    st.session_state.products[new_product.strip()] = {
-                        "phases": pd.DataFrame(DEFAULT_PHASES),
-                        "custom_excludes": set(),
-                        "target_date": datetime.today().date(),
-                        "team_members": st.session_state.team_members.copy() if st.session_state.team_members else []
-                    }
-                    st.session_state.current_product = new_product.strip()
-                    st.success(f"✅ '{new_product.strip()}' 제품이 추가되었습니다.")
-                    st.rerun()
-                else:
-                    st.warning("이미 존재하는 제품명입니다.")
+            add_product()
 
     with col_del:
         if st.button("🗑️ 삭제", key="delete_product_btn"):
