@@ -217,6 +217,12 @@ def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None)
         
         # 5. 단계별 시작/종료일 계산 및 저장
         try:
+            # target_date가 문자열인 경우 date 객체로 변환
+            if isinstance(target_date, str):
+                target_date = datetime.fromisoformat(target_date).date()
+            elif target_date is None:
+                target_date = datetime.today().date()
+            
             # 시작/종료일 계산
             schedule_data = backward_schedule(target_date, phases_df.to_dict('records'), excludes_list)
             schedule_df = pd.DataFrame(schedule_data)
@@ -1433,6 +1439,7 @@ with settings_expander:
                 with col_b:
                     if st.button("🗑️", key=f"delete_member_{i}"):
                         st.session_state.team_members.remove(member)
+                        st.success(f"✅ '{member}' 담당자가 삭제되었습니다.")
                         st.rerun()
         else:
             st.info("등록된 담당자가 없습니다.")
@@ -1477,6 +1484,7 @@ with settings_expander:
                 with col_d:
                     if st.button("🗑️", key=f"delete_exclude_{exclude_date}"):
                         st.session_state.custom_excludes.remove(exclude_date)
+                        st.success(f"✅ '{exclude_date.strftime('%Y-%m-%d')}' 제외일이 삭제되었습니다.")
                         st.rerun()
         else:
             st.info("등록된 제외일이 없습니다.")
