@@ -1009,9 +1009,14 @@ with settings_expander:
                     if loaded_members:
                         st.session_state.team_members = loaded_members
                         st.session_state.team_members_loaded = True
-                        st.success("✅ 기본 담당자 목록을 불러왔습니다.")
+                        st.success(f"✅ 기본 담당자 목록을 불러왔습니다. ({len(loaded_members)}명)")
+                    else:
+                        st.warning("기본 담당자 파일이 비어있습니다.")
+                else:
+                    st.info("기본 담당자 파일이 없습니다. 새로 추가해주세요.")
             except Exception as e:
                 st.warning(f"기본 담당자 파일 불러오기 실패: {e}")
+                st.info("기본 담당자 파일이 없습니다. 새로 추가해주세요.")
         
         # 새 담당자 추가
         new_member = st.text_input("새 담당자 추가", key="new_member_input", 
@@ -1028,6 +1033,8 @@ with settings_expander:
                     if st.button("🗑️", key=f"delete_member_{i}"):
                         st.session_state.team_members.remove(member)
                         st.rerun()
+        else:
+            st.info("등록된 담당자가 없습니다.")
         
         # 담당자 목록 저장/불러오기
         col_save1, col_load1 = st.columns(2)
@@ -1062,9 +1069,14 @@ with settings_expander:
                     if loaded_dates:
                         st.session_state.custom_excludes.update(loaded_dates)
                         st.session_state.exclude_dates_loaded = True
-                        st.success("✅ 기본 제외일 설정을 불러왔습니다.")
+                        st.success(f"✅ 기본 제외일 설정을 불러왔습니다. ({len(loaded_dates)}개)")
+                    else:
+                        st.warning("기본 제외일 파일이 비어있습니다.")
+                else:
+                    st.info("기본 제외일 파일이 없습니다. 새로 추가해주세요.")
             except Exception as e:
                 st.warning(f"기본 제외일 파일 불러오기 실패: {e}")
+                st.info("기본 제외일 파일이 없습니다. 새로 추가해주세요.")
         
         # 제외일 추가
         exclude_date = st.date_input("제외할 날짜 선택", key="exclude_date_input")
@@ -1087,6 +1099,8 @@ with settings_expander:
                     if st.button("🗑️", key=f"delete_exclude_{exclude_date}"):
                         st.session_state.custom_excludes.remove(exclude_date)
                         st.rerun()
+        else:
+            st.info("등록된 제외일이 없습니다.")
         
         # 제외일 설정 저장/불러오기
         col_save2, col_load2 = st.columns(2)
@@ -1108,8 +1122,7 @@ with settings_expander:
                         st.rerun()
             else:
                 st.info("저장된 제외일 설정 파일이 없습니다.")
-    
-    with col3:
+        
         # 기본 설정 불러오기
         if st.button("🔄 기본 설정 불러오기", key="load_default_settings_btn"):
             loaded_dates, saved_at = load_exclude_settings("exclude_settings.json")
@@ -1118,27 +1131,11 @@ with settings_expander:
                 st.success(f"✅ 기본 설정을 불러왔습니다. ({len(loaded_dates)}개 제외일)")
             else:
                 st.info("기본 설정 파일이 없습니다.")
-    
-    # 제외일 관리
-    if st.button("🗑️ 제외일 전체 초기화", key="clear_all_excludes_btn"):
-        st.session_state.custom_excludes.clear()
-        st.success("✅ 모든 제외일이 초기화되었습니다.")
-    
-    # 제외일 목록 표시
-    if st.session_state.custom_excludes:
-        st.markdown("### 📋 현재 제외일 목록:")
-        excluded_list = sorted(st.session_state.custom_excludes)
-        for i, d in enumerate(excluded_list):
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.write(f"📌 {d.strftime('%Y-%m-%d')} ({d.strftime('%A')})")
-            with col2:
-                if st.button(f"삭제", key=f"del_{i}"):
-                    st.session_state.custom_excludes.remove(d)
-                    st.rerun()
-        st.info(f"총 {len(excluded_list)}개의 제외일이 등록되어 있습니다.")
-    else:
-        st.info("현재 등록된 제외일 없음")
+        
+        # 제외일 관리
+        if st.button("🗑️ 제외일 전체 초기화", key="clear_all_excludes_btn"):
+            st.session_state.custom_excludes.clear()
+            st.success("✅ 모든 제외일이 초기화되었습니다.")
 
 # ✅ 담당자 추가 함수
 def add_new_member():
