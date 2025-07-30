@@ -38,97 +38,7 @@ def calculate_total_lead_time():
     return total_lead_time
 
 
-# ✅ 제외일 설정 저장/불러오기 함수
-def save_exclude_settings(exclude_dates, filename="exclude_settings.json"):
-    """제외일 설정을 JSON 파일로 저장"""
-    try:
-        # productPLM 폴더에 저장
-        file_path = os.path.join("productPLM", filename)
-        data = {
-            "exclude_dates": [d.isoformat() for d in exclude_dates],
-            "saved_at": datetime.now().isoformat(),
-            "description": "사용자 지정 제외일 설정"
-        }
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        st.error(f"설정 저장 중 오류 발생: {e}")
-        return False
 
-def load_exclude_settings(filename="exclude_settings.json"):
-    """제외일 설정을 JSON 파일에서 불러오기"""
-    try:
-        # productPLM 폴더에서 로드
-        file_path = os.path.join("productPLM", filename)
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            exclude_dates = {datetime.fromisoformat(d).date() for d in data.get("exclude_dates", [])}
-            saved_at = data.get("saved_at", "")
-            return exclude_dates, saved_at
-        return set(), ""
-    except Exception as e:
-        st.error(f"설정 불러오기 중 오류 발생: {e}")
-        return set(), ""
-
-def get_saved_settings_files():
-    """저장된 설정 파일 목록 가져오기"""
-    try:
-        # productPLM 폴더에서 검색
-        folder_path = "productPLM"
-        if os.path.exists(folder_path):
-            files = [f for f in os.listdir(folder_path) if f.endswith('_exclude_settings.json')]
-            return files
-        return []
-    except:
-        return []
-
-# ✅ 담당자 관리 함수들
-def save_team_members(team_members, filename="team_members.json"):
-    """담당자 목록을 JSON 파일로 저장"""
-    try:
-        # productPLM 폴더에 저장
-        file_path = os.path.join("productPLM", filename)
-        data = {
-            "team_members": team_members,
-            "saved_at": datetime.now().isoformat(),
-            "description": "담당자 목록"
-        }
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        st.error(f"담당자 목록 저장 중 오류 발생: {e}")
-        return False
-
-def load_team_members(filename="team_members.json"):
-    """담당자 목록을 JSON 파일에서 불러오기"""
-    try:
-        # productPLM 폴더에서 로드
-        file_path = os.path.join("productPLM", filename)
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            team_members = data.get("team_members", [])
-            saved_at = data.get("saved_at", "")
-            return team_members, saved_at
-        return [], ""
-    except Exception as e:
-        st.error(f"담당자 목록 불러오기 중 오류 발생: {e}")
-        return [], ""
-
-def get_saved_team_files():
-    """저장된 담당자 파일 목록 가져오기"""
-    try:
-        # productPLM 폴더에서 검색
-        folder_path = "productPLM"
-        if os.path.exists(folder_path):
-            files = [f for f in os.listdir(folder_path) if f.endswith('_members.json') or f.endswith('_team_members.json')]
-            return files
-        return []
-    except:
-        return []
 
 def save_product_data(product_name, product_data, filename=None):
     """제품 데이터를 JSON 파일로 저장"""
@@ -1001,22 +911,19 @@ with settings_expander:
         st.markdown("### 👥 담당자 관리")
         
         # 기본 담당자 파일 자동 불러오기
-        if "team_members_loaded" not in st.session_state:
-            try:
-                default_members_file = os.path.join("productPLM", "Eqqualberry_PLM_members.json")
-                if os.path.exists(default_members_file):
-                    loaded_members, _ = load_team_members("Eqqualberry_PLM_members.json")
-                    if loaded_members:
-                        st.session_state.team_members = loaded_members
-                        st.session_state.team_members_loaded = True
-                        st.success(f"✅ 기본 담당자 목록을 불러왔습니다. ({len(loaded_members)}명)")
-                    else:
-                        st.warning("기본 담당자 파일이 비어있습니다.")
+        try:
+            with open("productPLM/Eqqualberry_PLM_members.json", "r", encoding="utf-8") as f:
+                default_members_data = json.load(f)
+                default_members = default_members_data.get("team_members", [])
+                if default_members:
+                    st.session_state.team_members = default_members
+                    st.success(f"✅ 기본 담당자 목록을 불러왔습니다. ({len(default_members)}명)")
                 else:
-                    st.info("기본 담당자 파일이 없습니다. 새로 추가해주세요.")
-            except Exception as e:
-                st.warning(f"기본 담당자 파일 불러오기 실패: {e}")
-                st.info("기본 담당자 파일이 없습니다. 새로 추가해주세요.")
+                    st.warning("기본 담당자 파일이 비어있습니다.")
+        except FileNotFoundError:
+            st.error("❌ 기본 담당자 파일을 찾을 수 없습니다.")
+        except Exception as e:
+            st.error(f"❌ 기본 담당자 파일 불러오기 실패: {e}")
         
         # 새 담당자 추가
         new_member = st.text_input("새 담당자 추가", key="new_member_input", 
@@ -1035,53 +942,26 @@ with settings_expander:
                         st.rerun()
         else:
             st.info("등록된 담당자가 없습니다.")
-        
-        # 담당자 목록 저장/불러오기
-        st.markdown("#### 💾 담당자 목록 저장/불러오기")
-        col_save1, col_load1 = st.columns(2)
-        
-        with col_save1:
-            save_filename = st.text_input("저장할 파일명 (확장자 제외)", 
-                                        value="담당자목록",
-                                        key="save_team_filename")
-            if st.button("💾 담당자 목록 저장", key="save_team_btn"):
-                if save_team_members(st.session_state.team_members, f"{save_filename}.json"):
-                    st.success(f"✅ **{save_filename}.json** 담당자 목록이 저장되었습니다!")
-        
-        with col_load1:
-            # 저장된 담당자 파일 목록
-            team_files = get_saved_team_files()
-            if team_files:
-                selected_team_file = st.selectbox("저장된 담당자 파일", ["선택하세요"] + team_files, key="team_file_select")
-                if st.button("📂 담당자 목록 불러오기", key="load_team_btn") and selected_team_file != "선택하세요":
-                    loaded_members, _ = load_team_members(selected_team_file)
-                    if loaded_members:
-                        st.session_state.team_members = loaded_members
-                        st.success(f"✅ **{selected_team_file}** 담당자 목록을 불러왔습니다!")
-                        st.rerun()
-            else:
-                st.info("저장된 담당자 파일이 없습니다.")
     
     with col2:
         st.markdown("### 📅 제외일 설정")
         
         # 기본 제외일 파일 자동 불러오기
-        if "exclude_dates_loaded" not in st.session_state:
-            try:
-                default_exclude_file = os.path.join("productPLM", "공휴일_2025_Second_exclude_settings.json")
-                if os.path.exists(default_exclude_file):
-                    loaded_dates, _ = load_exclude_settings("공휴일_2025_Second_exclude_settings.json")
-                    if loaded_dates:
-                        st.session_state.custom_excludes.update(loaded_dates)
-                        st.session_state.exclude_dates_loaded = True
-                        st.success(f"✅ 기본 제외일 설정을 불러왔습니다. ({len(loaded_dates)}개)")
-                    else:
-                        st.warning("기본 제외일 파일이 비어있습니다.")
+        try:
+            with open("productPLM/공휴일_2025_Second_exclude_settings.json", "r", encoding="utf-8") as f:
+                default_exclude_data = json.load(f)
+                default_exclude_dates = default_exclude_data.get("exclude_dates", [])
+                if default_exclude_dates:
+                    # ISO 형식의 날짜 문자열을 date 객체로 변환
+                    exclude_dates = {datetime.fromisoformat(date_str).date() for date_str in default_exclude_dates}
+                    st.session_state.custom_excludes.update(exclude_dates)
+                    st.success(f"✅ 기본 제외일 설정을 불러왔습니다. ({len(exclude_dates)}개)")
                 else:
-                    st.info("기본 제외일 파일이 없습니다. 새로 추가해주세요.")
-            except Exception as e:
-                st.warning(f"기본 제외일 파일 불러오기 실패: {e}")
-                st.info("기본 제외일 파일이 없습니다. 새로 추가해주세요.")
+                    st.warning("기본 제외일 파일이 비어있습니다.")
+        except FileNotFoundError:
+            st.error("❌ 기본 제외일 파일을 찾을 수 없습니다.")
+        except Exception as e:
+            st.error(f"❌ 기본 제외일 파일 불러오기 실패: {e}")
         
         # 제외일 추가
         exclude_date = st.date_input("제외할 날짜 선택", key="exclude_date_input")
@@ -1107,58 +987,7 @@ with settings_expander:
         else:
             st.info("등록된 제외일이 없습니다.")
         
-        # 제외일 설정 저장/불러오기
-        st.markdown("#### 💾 제외일 설정 저장/불러오기")
-        col_save2, col_load2 = st.columns(2)
-        
-        with col_save2:
-            save_exclude_filename = st.text_input("저장할 파일명 (확장자 제외)", 
-                                                value="제외일설정",
-                                                key="save_exclude_filename")
-            if st.button("💾 제외일 설정 저장", key="save_exclude_btn"):
-                if save_exclude_settings(st.session_state.custom_excludes, f"{save_exclude_filename}.json"):
-                    st.success(f"✅ **{save_exclude_filename}.json** 제외일 설정이 저장되었습니다!")
-        
-        with col_load2:
-            # 저장된 제외일 설정 파일 목록
-            exclude_files = get_saved_settings_files()
-            if exclude_files:
-                selected_exclude_file = st.selectbox("저장된 제외일 설정", ["선택하세요"] + exclude_files, key="exclude_file_select")
-                if st.button("📂 제외일 설정 불러오기", key="load_exclude_btn") and selected_exclude_file != "선택하세요":
-                    loaded_dates, _ = load_exclude_settings(selected_exclude_file)
-                    if loaded_dates:
-                        st.session_state.custom_excludes = loaded_dates
-                        st.success(f"✅ **{selected_exclude_file}** 제외일 설정을 불러왔습니다!")
-                        st.rerun()
-            else:
-                st.info("저장된 제외일 설정 파일이 없습니다.")
-        
-        # 기본 설정 불러오기
-        st.markdown("#### 🔄 기본 설정 불러오기")
-        col_default1, col_default2 = st.columns(2)
-        
-        with col_default1:
-            if st.button("📂 기본 담당자 불러오기", key="load_default_members_btn"):
-                loaded_members, _ = load_team_members("Eqqualberry_PLM_members.json")
-                if loaded_members:
-                    st.session_state.team_members = loaded_members
-                    st.success(f"✅ 기본 담당자 목록을 불러왔습니다. ({len(loaded_members)}명)")
-                    st.rerun()
-                else:
-                    st.warning("기본 담당자 파일이 없습니다.")
-        
-        with col_default2:
-            if st.button("📂 기본 제외일 불러오기", key="load_default_excludes_btn"):
-                loaded_dates, _ = load_exclude_settings("공휴일_2025_Second_exclude_settings.json")
-                if loaded_dates:
-                    st.session_state.custom_excludes.update(loaded_dates)
-                    st.success(f"✅ 기본 제외일 설정을 불러왔습니다. ({len(loaded_dates)}개)")
-                    st.rerun()
-                else:
-                    st.warning("기본 제외일 파일이 없습니다.")
-        
-        # 제외일 관리
-        st.markdown("#### 🗑️ 제외일 관리")
+        # 초기화 기능
         col_clear1, col_clear2 = st.columns(2)
         
         with col_clear1:
