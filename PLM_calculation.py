@@ -912,7 +912,7 @@ with settings_expander:
         
         # 기본 담당자 파일 자동 불러오기
         try:
-            with open("productPLM/Eqqualberry_PLM_members.json", "r", encoding="utf-8") as f:
+            with open("Eqqualberry_PLM_members.json", "r", encoding="utf-8") as f:
                 default_members_data = json.load(f)
                 default_members = default_members_data.get("team_members", [])
                 if default_members:
@@ -948,7 +948,7 @@ with settings_expander:
         
         # 기본 제외일 파일 자동 불러오기
         try:
-            with open("productPLM/공휴일_2025_Second_exclude_settings.json", "r", encoding="utf-8") as f:
+            with open("공휴일_2025_Second_exclude_settings.json", "r", encoding="utf-8") as f:
                 default_exclude_data = json.load(f)
                 default_exclude_dates = default_exclude_data.get("exclude_dates", [])
                 if default_exclude_dates:
