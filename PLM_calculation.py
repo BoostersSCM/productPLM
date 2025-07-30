@@ -1028,14 +1028,37 @@ def generate_calendar_image(html_content):
                 );
             """)
             
-            # 여백을 포함한 전체 높이 계산 (추가 여백 100px)
-            total_height = document_height + 100
+            # 여백을 포함한 전체 높이 계산 (추가 여백 300px)
+            total_height = document_height + 300
             
             # 브라우저 창 크기를 동적으로 조정
             driver.set_window_size(1200, total_height)
             
             # 페이지가 다시 렌더링될 때까지 잠시 대기
+            time.sleep(2)
+            
+            # 추가로 스크롤이 완전히 로드될 때까지 대기
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(1)
+            driver.execute_script("window.scrollTo(0, 0);")
+            time.sleep(1)
+            
+            # 최종 높이 확인 및 필요시 조정
+            final_height = driver.execute_script("""
+                return Math.max(
+                    document.body.scrollHeight,
+                    document.body.offsetHeight,
+                    document.documentElement.clientHeight,
+                    document.documentElement.scrollHeight,
+                    document.documentElement.offsetHeight
+                );
+            """)
+            
+            # 높이가 변경되었으면 창 크기 재조정
+            if final_height > total_height - 300:
+                adjusted_height = final_height + 300
+                driver.set_window_size(1200, adjusted_height)
+                time.sleep(1)
             
             # 스크린샷 촬영
             screenshot = driver.get_screenshot_as_png()
@@ -1599,13 +1622,14 @@ with product_data_expander:
             # 기본 스프레드시트 ID 설정
             DEFAULT_SPREADSHEET_ID = "1BNUCty06p7WTmGr1gf-jsBBB9YT96U3g7Zxn-qYO4xk"
             
-            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 None으로 설정
+            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 기본값 사용
             if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
                 current_spreadsheet_id = st.session_state.saved_spreadsheet_id
-                st.info(f"📊 사용 중인 스프레드시트 ID: `{current_spreadsheet_id}`")
             else:
-                current_spreadsheet_id = None
-                st.info("📊 새 스프레드시트를 생성합니다.")
+                current_spreadsheet_id = DEFAULT_SPREADSHEET_ID
+                st.session_state.saved_spreadsheet_id = DEFAULT_SPREADSHEET_ID
+            
+            st.info(f"📊 사용 중인 스프레드시트 ID: `{current_spreadsheet_id}`")
             
             spreadsheet_id = current_spreadsheet_id
             
@@ -1637,16 +1661,17 @@ with product_data_expander:
             # 기본 스프레드시트 ID 설정
             DEFAULT_SPREADSHEET_ID = "1BNUCty06p7WTmGr1gf-jsBBB9YT96U3g7Zxn-qYO4xk"
             
-            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 빈 값 사용
+            # 저장된 스프레드시트 ID가 있으면 사용, 없으면 기본값 사용
             if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
                 default_spreadsheet_id = st.session_state.saved_spreadsheet_id
             else:
-                default_spreadsheet_id = ""
+                default_spreadsheet_id = DEFAULT_SPREADSHEET_ID
+                st.session_state.saved_spreadsheet_id = DEFAULT_SPREADSHEET_ID
             
             spreadsheet_id = st.text_input(
                 "스프레드시트 ID 입력",
                 value=default_spreadsheet_id,
-                placeholder="스프레드시트 ID를 입력하거나 비워두면 새로 생성됩니다",
+                placeholder="기본 스프레드시트 ID가 자동으로 설정됩니다",
                 key="spreadsheet_id_input"
             )
             
