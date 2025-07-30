@@ -39,35 +39,34 @@ def calculate_total_lead_time():
 
 
 # ✅ 제외일 설정 저장/불러오기 함수
-def save_exclude_settings(exclude_dates, filename="공휴일_2025_Second_exclude_settings.json"):
+def save_exclude_settings(exclude_dates, filename="exclude_settings.json"):
     """제외일 설정을 JSON 파일로 저장"""
     try:
-        # 날짜 객체를 문자열로 변환
-        exclude_dates_str = [date.isoformat() for date in exclude_dates]
-        settings = {
-            "exclude_dates": exclude_dates_str,
+        # BoostersSCM 폴더에 저장
+        file_path = os.path.join("BoostersSCM", filename)
+        data = {
+            "exclude_dates": [d.isoformat() for d in exclude_dates],
             "saved_at": datetime.now().isoformat(),
-            "description": "제외일 설정"
+            "description": "사용자 지정 제외일 설정"
         }
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(settings, f, ensure_ascii=False, indent=2)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
         st.error(f"설정 저장 중 오류 발생: {e}")
         return False
 
-def load_exclude_settings(filename="공휴일_2025_Second_exclude_settings.json"):
+def load_exclude_settings(filename="exclude_settings.json"):
     """제외일 설정을 JSON 파일에서 불러오기"""
     try:
-        st.write(f"현재 작업 디렉토리:{os.getcwd()}")
-        if os.path.exists(filename):
-            with open(filename, 'r', encoding='utf-8') as f:
-                settings = json.load(f)
-            
-            # 문자열을 날짜 객체로 변환
-            exclude_dates = [datetime.fromisoformat(date_str).date() for date_str in settings.get("exclude_dates", [])]
-            return exclude_dates, settings.get("saved_at", "")
+        # BoostersSCM 폴더에서 로드
+        file_path = os.path.join("BoostersSCM", filename)
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            exclude_dates = {datetime.fromisoformat(d).date() for d in data.get("exclude_dates", [])}
+            saved_at = data.get("saved_at", "")
+            return exclude_dates, saved_at
         return set(), ""
     except Exception as e:
         st.error(f"설정 불러오기 중 오류 발생: {e}")
@@ -76,45 +75,58 @@ def load_exclude_settings(filename="공휴일_2025_Second_exclude_settings.json"
 def get_saved_settings_files():
     """저장된 설정 파일 목록 가져오기"""
     try:
-        files = [f for f in os.listdir('.') if f.endswith('_exclude_settings.json')]
-        return files
+        # BoostersSCM 폴더에서 검색
+        folder_path = "BoostersSCM"
+        if os.path.exists(folder_path):
+            files = [f for f in os.listdir(folder_path) if f.endswith('_exclude_settings.json')]
+            return files
+        return []
     except:
         return []
 
 # ✅ 담당자 관리 함수들
-def save_team_members(team_members, filename="이퀄베리 프로덕트_members.json"):
-    """담당자 정보를 JSON 파일로 저장"""
+def save_team_members(team_members, filename="team_members.json"):
+    """담당자 목록을 JSON 파일로 저장"""
     try:
-        settings = {
+        # BoostersSCM 폴더에 저장
+        file_path = os.path.join("BoostersSCM", filename)
+        data = {
             "team_members": team_members,
             "saved_at": datetime.now().isoformat(),
-            "description": "담당자 정보"
+            "description": "담당자 목록"
         }
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(settings, f, ensure_ascii=False, indent=2)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
-        st.error(f"담당자 정보 저장 중 오류 발생: {e}")
+        st.error(f"담당자 목록 저장 중 오류 발생: {e}")
         return False
 
-def load_team_members(filename="이퀄베리 프로덕트_members.json"):
-    """담당자 정보를 JSON 파일에서 불러오기"""
+def load_team_members(filename="team_members.json"):
+    """담당자 목록을 JSON 파일에서 불러오기"""
     try:
-        if os.path.exists(filename):
-            with open(filename, 'r', encoding='utf-8') as f:
-                settings = json.load(f)
-            return settings.get("team_members", []), settings.get("saved_at", "")
+        # BoostersSCM 폴더에서 로드
+        file_path = os.path.join("BoostersSCM", filename)
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            team_members = data.get("team_members", [])
+            saved_at = data.get("saved_at", "")
+            return team_members, saved_at
         return [], ""
     except Exception as e:
-        st.error(f"담당자 정보 불러오기 중 오류 발생: {e}")
+        st.error(f"담당자 목록 불러오기 중 오류 발생: {e}")
         return [], ""
 
 def get_saved_team_files():
     """저장된 담당자 파일 목록 가져오기"""
     try:
-        files = [f for f in os.listdir('.') if f.endswith('_members.json') or f.endswith('_team_members.json')]
-        return files
+        # BoostersSCM 폴더에서 검색
+        folder_path = "BoostersSCM"
+        if os.path.exists(folder_path):
+            files = [f for f in os.listdir(folder_path) if f.endswith('_members.json') or f.endswith('_team_members.json')]
+            return files
+        return []
     except:
         return []
 
@@ -123,6 +135,9 @@ def save_product_data(product_name, product_data, filename=None):
     try:
         if filename is None:
             filename = f"{product_name}_product_data.json"
+        
+        # BoostersSCM 폴더에 저장
+        file_path = os.path.join("BoostersSCM", filename)
         
         # DataFrame을 딕셔너리로 변환
         phases_dict = product_data["phases"].to_dict(orient="records") if not product_data["phases"].empty else []
@@ -138,7 +153,7 @@ def save_product_data(product_name, product_data, filename=None):
             "description": "제품별 개발 일정 데이터"
         }
         
-        with open(filename, 'w', encoding='utf-8') as f:
+        with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(save_data, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
@@ -148,8 +163,10 @@ def save_product_data(product_name, product_data, filename=None):
 def load_product_data(filename):
     """제품 데이터를 JSON 파일에서 불러오기"""
     try:
-        if os.path.exists(filename):
-            with open(filename, 'r', encoding='utf-8') as f:
+        # BoostersSCM 폴더에서 로드
+        file_path = os.path.join("BoostersSCM", filename)
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             # 딕셔너리를 DataFrame으로 변환
@@ -1312,34 +1329,40 @@ if st.session_state.current_product != "새 제품":
     
     # 저장된 제품 파일 목록
     try:
-        product_files = [f for f in os.listdir('.') if f.endswith('_product_data.json')]
-        if product_files:
-            selected_file = st.selectbox("저장된 제품 파일 선택", ["선택하세요"] + product_files)
+        # BoostersSCM 폴더에서 검색
+        folder_path = "BoostersSCM"
+        if os.path.exists(folder_path):
+            product_files = [f for f in os.listdir(folder_path) if f.endswith('_product_data.json')]
+            if product_files:
+                selected_file = st.selectbox("저장된 제품 파일 선택", ["선택하세요"] + product_files)
+                
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("📂 제품 데이터 불러오기", key="load_product_btn") and selected_file != "선택하세요":
+                        loaded_data = load_product_data(selected_file)
+                        if loaded_data:
+                            st.session_state.phases = loaded_data["phases"]
+                            st.session_state.custom_excludes = loaded_data["custom_excludes"]
+                            if loaded_data["target_date"]:
+                                st.session_state.target_date = loaded_data["target_date"]
+                            if loaded_data["team_members"]:
+                                st.session_state.team_members = loaded_data["team_members"]
+                            st.success(f"✅ **{selected_file}** 제품 데이터를 불러왔습니다!")
+                            st.rerun()
             
-            col1, col2 = st.columns([1, 1])
-            with col1:
-                if st.button("📂 제품 데이터 불러오기", key="load_product_btn") and selected_file != "선택하세요":
-                    loaded_data = load_product_data(selected_file)
-                    if loaded_data:
-                        st.session_state.phases = loaded_data["phases"]
-                        st.session_state.custom_excludes = loaded_data["custom_excludes"]
-                        if loaded_data["target_date"]:
-                            st.session_state.target_date = loaded_data["target_date"]
-                        if loaded_data["team_members"]:
-                            st.session_state.team_members = loaded_data["team_members"]
-                        st.success(f"✅ **{selected_file}** 제품 데이터를 불러왔습니다!")
-                        st.rerun()
-            
-            with col2:
-                if st.button("🗑️ 선택된 파일 삭제", key="delete_product_file_btn") and selected_file != "선택하세요":
-                    try:
-                        os.remove(selected_file)
-                        st.success(f"✅ **{selected_file}** 파일이 삭제되었습니다!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ 파일 삭제 중 오류 발생: {e}")
+                with col2:
+                    if st.button("🗑️ 선택된 파일 삭제", key="delete_product_file_btn") and selected_file != "선택하세요":
+                        try:
+                            file_path = os.path.join(folder_path, selected_file)
+                            os.remove(file_path)
+                            st.success(f"✅ **{selected_file}** 파일이 삭제되었습니다!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ 파일 삭제 중 오류 발생: {e}")
+            else:
+                st.info("저장된 제품 데이터 파일이 없습니다.")
         else:
-            st.info("저장된 제품 데이터 파일이 없습니다.")
+            st.info("BoostersSCM 폴더가 존재하지 않습니다.")
     except Exception as e:
         st.error(f"파일 목록 조회 중 오류 발생: {e}")
 
