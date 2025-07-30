@@ -16,6 +16,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+import gspread
+from google.oauth2.service_account import Credentials
 
 # ✅ 앱 설정
 st.set_page_config(page_title="이퀄베리 신제품 일정 관리", layout="wide")
@@ -40,8 +42,217 @@ def calculate_total_lead_time():
 
 
 
+def get_google_sheets_client():
+    """Google Sheets API 클라이언트 생성"""
+    try:
+        # st.secrets에서 서비스 계정 정보 읽기
+        if hasattr(st.secrets, 'google_service_account'):
+            # secrets.toml에서 서비스 계정 정보 읽기
+            service_account_info = dict(st.secrets.google_service_account)
+            creds = Credentials.from_service_account_info(
+                service_account_info,
+                scopes=['https://www.googleapis.com/auth/spreadsheets']
+            )
+        elif os.path.exists("productPLM/service_account_key.json"):
+            # 로컬 개발용: 파일에서 읽기
+            creds = Credentials.from_service_account_file(
+                "productPLM/service_account_key.json",
+                scopes=['https://www.googleapis.com/auth/spreadsheets']
+            )
+        else:
+            # Streamlit Cloud 환경변수 사용 (fallback)
+            import base64
+            service_account_info = json.loads(base64.b64decode(os.environ.get('GOOGLE_SERVICE_ACCOUNT_KEY', '')))
+            creds = Credentials.from_service_account_info(
+                service_account_info,
+                scopes=['https://www.googleapis.com/auth/spreadsheets']
+            )
+        
+        client = gspread.authorize(creds)
+        return client
+    except Exception as e:
+        st.error(f"Google Sheets 클라이언트 생성 실패: {e}")
+        st.error("서비스 계정 설정을 확인해주세요.")
+        return None
+
+def save_product_data_to_sheets(product_name, product_data, spreadsheet_id=None):
+    """제품 데이터를 Google 스프레드시트에 저장"""
+    try:
+        client = get_google_sheets_client()
+        if not client:
+            return False
+        
+        # 스프레드시트 ID가 없으면 새로 생성
+        if not spreadsheet_id:
+            spreadsheet = client.create("이퀄베리_PLM_데이터")
+            spreadsheet_id = spreadsheet.id
+        else:
+            spreadsheet = client.open_by_key(spreadsheet_id)
+        
+        # 제품명으로 워크시트 탭 생성 (기존 탭이 있으면 덮어쓰기)
+        worksheet_title = f"{product_name}_데이터"
+        
+        # 기존 워크시트가 있으면 삭제
+        try:
+            existing_worksheet = spreadsheet.worksheet(worksheet_title)
+            spreadsheet.del_worksheet(existing_worksheet)
+        except:
+            pass
+        
+        # 새 워크시트 생성
+        worksheet = spreadsheet.add_worksheet(title=worksheet_title, rows=100, cols=20)
+        
+        # 데이터 준비
+        phases_df = product_data["phases"]
+        excludes_list = list(product_data["custom_excludes"])
+        target_date = product_data["target_date"].isoformat() if product_data["target_date"] else ""
+        team_members = product_data.get("team_members", [])
+        
+        # 헤더와 데이터 준비
+        data_to_write = []
+        
+        # 1. 제품 정보
+        data_to_write.extend([
+            ["제품명", product_name],
+            ["목표완료일", target_date],
+            ["저장일시", datetime.now().isoformat()],
+            [""],  # 빈 줄
+        ])
+        
+        # 2. 담당자 목록
+        data_to_write.extend([
+            ["담당자 목록"],
+            ["번호", "담당자명"]
+        ])
+        for i, member in enumerate(team_members, 1):
+            data_to_write.append([i, member])
+        data_to_write.append([""])  # 빈 줄
+        
+        # 3. 제외일 목록
+        data_to_write.extend([
+            ["제외일 목록"],
+            ["번호", "제외일"]
+        ])
+        for i, exclude_date in enumerate(sorted(excludes_list), 1):
+            data_to_write.append([i, exclude_date.isoformat()])
+        data_to_write.append([""])  # 빈 줄
+        
+        # 4. 단계별 데이터
+        data_to_write.extend([
+            ["단계별 개발 일정"],
+            ["단계", "리드타임", "담당자", "Asana Task 코드"]
+        ])
+        for _, row in phases_df.iterrows():
+            data_to_write.append([
+                row["단계"],
+                row["리드타임"],
+                row["담당자"],
+                row["Asana Task 코드"]
+            ])
+        
+        # 데이터 쓰기
+        worksheet.update('A1', data_to_write)
+        
+        # 스프레드시트 URL 반환
+        spreadsheet_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
+        
+        return True, spreadsheet_id, spreadsheet_url
+    except Exception as e:
+        st.error(f"Google 스프레드시트 저장 중 오류 발생: {e}")
+        return False, None, None
+
+def load_product_data_from_sheets(spreadsheet_id, product_name=None):
+    """Google 스프레드시트에서 제품 데이터 불러오기"""
+    try:
+        client = get_google_sheets_client()
+        if not client:
+            return None
+        
+        spreadsheet = client.open_by_key(spreadsheet_id)
+        
+        # 제품명이 지정되지 않으면 사용 가능한 워크시트 목록 표시
+        if not product_name:
+            worksheets = spreadsheet.worksheets()
+            worksheet_names = [ws.title for ws in worksheets if ws.title.endswith("_데이터")]
+            if not worksheet_names:
+                st.error("❌ 저장된 제품 데이터가 없습니다.")
+                return None
+            
+            # 첫 번째 제품 데이터 워크시트 사용
+            worksheet_title = worksheet_names[0]
+            product_name = worksheet_title.replace("_데이터", "")
+        else:
+            worksheet_title = f"{product_name}_데이터"
+        
+        try:
+            worksheet = spreadsheet.worksheet(worksheet_title)
+        except:
+            st.error(f"❌ '{product_name}' 제품 데이터를 찾을 수 없습니다.")
+            return None
+        
+        # 모든 데이터 읽기
+        all_data = worksheet.get_all_values()
+        
+        # 데이터 파싱
+        product_name = ""
+        target_date = None
+        team_members = []
+        excludes_list = []
+        phases_data = []
+        
+        current_section = None
+        for row in all_data:
+            if not row or not row[0]:  # 빈 줄 건너뛰기
+                continue
+            
+            if row[0] == "제품명":
+                product_name = row[1] if len(row) > 1 else ""
+            elif row[0] == "목표완료일":
+                target_date_str = row[1] if len(row) > 1 else ""
+                if target_date_str:
+                    target_date = datetime.fromisoformat(target_date_str).date()
+            elif row[0] == "담당자 목록":
+                current_section = "team_members"
+            elif row[0] == "제외일 목록":
+                current_section = "excludes"
+            elif row[0] == "단계별 개발 일정":
+                current_section = "phases"
+            elif current_section == "team_members" and row[0] != "번호":
+                if len(row) > 1:
+                    team_members.append(row[1])
+            elif current_section == "excludes" and row[0] != "번호":
+                if len(row) > 1:
+                    try:
+                        exclude_date = datetime.fromisoformat(row[1]).date()
+                        excludes_list.append(exclude_date)
+                    except:
+                        pass
+            elif current_section == "phases" and row[0] != "단계":
+                if len(row) >= 4:
+                    phases_data.append({
+                        "단계": row[0],
+                        "리드타임": int(row[1]) if row[1].isdigit() else 0,
+                        "담당자": row[2],
+                        "Asana Task 코드": row[3]
+                    })
+        
+        # DataFrame 생성
+        phases_df = pd.DataFrame(phases_data)
+        excludes_set = set(excludes_list)
+        
+        return {
+            "product_name": product_name,
+            "phases": phases_df,
+            "custom_excludes": excludes_set,
+            "target_date": target_date,
+            "team_members": team_members
+        }
+    except Exception as e:
+        st.error(f"Google 스프레드시트 불러오기 중 오류 발생: {e}")
+        return None
+
 def save_product_data(product_name, product_data, filename=None):
-    """제품 데이터를 JSON 파일로 저장"""
+    """제품 데이터를 JSON 파일로 저장 (기존 호환성 유지)"""
     try:
         if filename is None:
             filename = f"{product_name}_product_data.json"
@@ -71,7 +282,7 @@ def save_product_data(product_name, product_data, filename=None):
         return False
 
 def load_product_data(filename):
-    """제품 데이터를 JSON 파일에서 불러오기"""
+    """제품 데이터를 JSON 파일에서 불러오기 (기존 호환성 유지)"""
     try:
         # productPLM 폴더에서 로드
         file_path = os.path.join("productPLM", filename)
@@ -270,7 +481,7 @@ def show_calendar_grid(df, excluded_days=None):
     st.markdown("### 🎨 단계별 색상 설명")
     phase_colors = {
         "사전 시장조사": "#E3F2FD",
-        "부자재 확정 및 샘플링": "#F3E5F5",
+        "부자재 사양확정정 및 샘플링": "#F3E5F5",
         "CT 및 사전 품질 확보": "#E8F5E8",
         "부자재 발주~입고": "#FFF3E0",
         "완제품 발주~생산": "#FCE4EC",
@@ -751,7 +962,7 @@ if "phases" in st.session_state and not st.session_state.phases.empty:
     # 기존 용어를 새로운 용어로 매핑
     old_to_new = {
         "시장조사": "사전 시장조사",
-        "샘플링": "부자재 확정 및 샘플링", 
+        "샘플링": "부자재 사양확정정 및 샘플링", 
         "완제품 발주~입고": "완제품 발주~생산",
         "품질 입고 검사": "품질 초도 검사~입고"
     }
@@ -912,7 +1123,7 @@ with settings_expander:
         
         # 기본 담당자 파일 자동 불러오기
         try:
-            with open("Eqqualberry_PLM_members.json", "r", encoding="utf-8") as f:
+            with open("productPLM/Eqqualberry_PLM_members.json", "r", encoding="utf-8") as f:
                 default_members_data = json.load(f)
                 default_members = default_members_data.get("team_members", [])
                 if default_members:
@@ -948,7 +1159,7 @@ with settings_expander:
         
         # 기본 제외일 파일 자동 불러오기
         try:
-            with open("공휴일_2025_Second_exclude_settings.json", "r", encoding="utf-8") as f:
+            with open("productPLM/공휴일_2025_Second_exclude_settings.json", "r", encoding="utf-8") as f:
                 default_exclude_data = json.load(f)
                 default_exclude_dates = default_exclude_data.get("exclude_dates", [])
                 if default_exclude_dates:
@@ -1049,7 +1260,7 @@ edited_df = st.data_editor(
             validate="^.+$"
         ),
         "리드타임": st.column_config.NumberColumn(
-            "L/T 워킹데이 기준 (일)",
+            "L/T 워킹데이 기준준 (일)",
             min_value=1,
             max_value=365,
             help="작업 소요 일수"
@@ -1167,15 +1378,25 @@ st.subheader("💾 제품 데이터 관리")
 product_data_expander = st.expander("제품 데이터 저장/불러오기", expanded=False)
 
 with product_data_expander:
-    col_save, col_load = st.columns(2)
+    col_sheets_save, col_sheets_load = st.columns(2)
     
-    with col_save:
-        st.markdown("### 💾 제품 데이터 저장")
-        save_filename = st.text_input("저장할 파일명 (확장자 제외)", 
-                                    value=f"{st.session_state.current_product}_product_data" if st.session_state.current_product != "새 제품" else "product_data",
-                                    key="save_filename_input")
+    with col_sheets_save:
+        st.markdown("### 📊 Google 스프레드시트 저장")
+        st.info("💡 같은 스프레드시트에 새 탭으로 제품 데이터를 저장합니다.")
         
-        if st.button("💾 제품 데이터 저장", key="save_product_data_btn"):
+        # 저장된 스프레드시트 ID 표시
+        if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
+            st.info(f"📊 현재 사용 중인 스프레드시트 ID: `{st.session_state.saved_spreadsheet_id}`")
+        
+        # 새 스프레드시트 생성 또는 기존 스프레드시트 사용
+        use_existing = st.checkbox("기존 스프레드시트 사용", value="saved_spreadsheet_id" in st.session_state)
+        
+        if use_existing and "saved_spreadsheet_id" in st.session_state:
+            spreadsheet_id = st.session_state.saved_spreadsheet_id
+        else:
+            spreadsheet_id = None
+        
+        if st.button("📊 Google 스프레드시트에 저장", key="save_to_sheets_btn"):
             product_data = {
                 "phases": st.session_state.phases,
                 "custom_excludes": st.session_state.custom_excludes,
@@ -1183,44 +1404,75 @@ with product_data_expander:
                 "team_members": st.session_state.team_members
             }
             
-            if save_product_data(st.session_state.current_product, product_data, f"{save_filename}.json"):
-                st.success(f"✅ **{st.session_state.current_product}** 제품 데이터가 저장되었습니다!")
-    
-    with col_load:
-        st.markdown("### 📂 제품 데이터 불러오기")
-        # 저장된 제품 파일 목록
-        try:
-            # productPLM 폴더에서 검색
-            folder_path = "productPLM"
-            if os.path.exists(folder_path):
-                product_files = [f for f in os.listdir(folder_path) if f.endswith('_product_data.json')]
-                if product_files:
-                    selected_file = st.selectbox("저장된 제품 파일 선택", ["선택하세요"] + product_files, key="load_product_select")
-                    
-                    if st.button("📂 제품 데이터 불러오기", key="load_product_data_btn") and selected_file != "선택하세요":
-                        loaded_data = load_product_data(selected_file)
-                        if loaded_data:
-                            st.session_state.phases = loaded_data["phases"]
-                            st.session_state.custom_excludes = loaded_data["custom_excludes"]
-                            if loaded_data["target_date"]:
-                                st.session_state.target_date = loaded_data["target_date"]
-                            if loaded_data["team_members"]:
-                                st.session_state.team_members = loaded_data["team_members"]
-                            st.success(f"✅ **{selected_file}** 제품 데이터를 불러왔습니다!")
-                            st.rerun()
-                    
-                    # 파일 삭제 기능
-                    if st.button("🗑️ 선택된 파일 삭제", key="delete_product_file_btn") and selected_file != "선택하세요":
-                        try:
-                            file_path = os.path.join(folder_path, selected_file)
-                            os.remove(file_path)
-                            st.success(f"✅ **{selected_file}** 파일이 삭제되었습니다!")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ 파일 삭제 중 오류 발생: {e}")
-                else:
-                    st.info("저장된 제품 데이터 파일이 없습니다.")
+            success, spreadsheet_id, spreadsheet_url = save_product_data_to_sheets(
+                st.session_state.current_product, product_data, spreadsheet_id
+            )
+            
+            if success:
+                st.success(f"✅ **{st.session_state.current_product}** 제품 데이터가 Google 스프레드시트에 저장되었습니다!")
+                st.info(f"📊 스프레드시트 URL: {spreadsheet_url}")
+                st.info(f"🔑 스프레드시트 ID: `{spreadsheet_id}`")
+                
+                # 스프레드시트 ID를 세션에 저장
+                st.session_state.saved_spreadsheet_id = spreadsheet_id
             else:
-                st.info("productPLM 폴더가 존재하지 않습니다.")
-        except Exception as e:
-            st.error(f"파일 목록 조회 중 오류 발생: {e}")
+                st.error("❌ Google 스프레드시트 저장에 실패했습니다.")
+    
+    with col_sheets_load:
+        st.markdown("### 📊 Google 스프레드시트 불러오기")
+        
+        # 저장된 스프레드시트 ID 사용 또는 새로 입력
+        if "saved_spreadsheet_id" in st.session_state and st.session_state.saved_spreadsheet_id:
+            default_spreadsheet_id = st.session_state.saved_spreadsheet_id
+        else:
+            default_spreadsheet_id = ""
+        
+        spreadsheet_id = st.text_input(
+            "스프레드시트 ID 입력",
+            value=default_spreadsheet_id,
+            placeholder="예: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+            key="spreadsheet_id_input"
+        )
+        
+        # 제품명 입력 (선택사항)
+        product_name = st.text_input(
+            "제품명 (선택사항 - 비워두면 첫 번째 제품 데이터 불러오기)",
+            placeholder="예: 신제품A",
+            key="product_name_input"
+        )
+        
+        if st.button("📊 스프레드시트에서 불러오기", key="load_from_sheets_btn") and spreadsheet_id:
+            loaded_data = load_product_data_from_sheets(spreadsheet_id, product_name if product_name else None)
+            if loaded_data:
+                st.session_state.phases = loaded_data["phases"]
+                st.session_state.custom_excludes = loaded_data["custom_excludes"]
+                if loaded_data["target_date"]:
+                    st.session_state.target_date = loaded_data["target_date"]
+                if loaded_data["team_members"]:
+                    st.session_state.team_members = loaded_data["team_members"]
+                st.success(f"✅ **{loaded_data['product_name']}** 제품 데이터를 불러왔습니다!")
+                
+                # 스프레드시트 ID 저장
+                st.session_state.saved_spreadsheet_id = spreadsheet_id
+                st.rerun()
+            else:
+                st.error("❌ 스프레드시트에서 데이터를 불러오는데 실패했습니다.")
+
+    # 설정 안내
+    st.markdown("---")
+    st.markdown("### ⚙️ Google 스프레드시트 설정 안내")
+    st.info("""
+    **Google 스프레드시트 사용을 위해서는 다음 설정이 필요합니다:**
+    
+    1. **Google Cloud Console**에서 프로젝트 생성
+    2. **Google Sheets API** 활성화
+    3. **서비스 계정** 생성 및 키 파일 다운로드
+    4. **.streamlit/secrets.toml** 파일에 서비스 계정 정보 저장
+    5. **스프레드시트 공유** 설정 (서비스 계정 이메일로 편집 권한 부여)
+    
+    **보안 설정:**
+    - 서비스 계정 키는 `.streamlit/secrets.toml`에 안전하게 저장됩니다
+    - GitHub에 민감한 정보가 노출되지 않도록 `.gitignore`에 설정되어 있습니다
+    
+    자세한 설정 방법은 README.md 파일을 참조하세요.
+    """)
