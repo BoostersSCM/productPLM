@@ -1555,7 +1555,7 @@ edited_df = st.data_editor(
             validate="^.+$"
         ),
         "리드타임": st.column_config.NumberColumn(
-            "L/T 워킹데이 기준준 (일)",
+            "L/T 워킹데이 기준 (일)",
             min_value=1,
             max_value=365,
             help="작업 소요 일수"
